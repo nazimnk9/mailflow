@@ -188,14 +188,60 @@ export function DashboardApp({ route }: { route: string }) {
   return <div className="dashboard-layout">
     {mobileOpen && <button className="mobile-sidebar-scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
     <aside className={`dashboard-sidebar ${collapsed ? 'sidebar-collapsed' : ''} ${mobileOpen ? 'sidebar-mobile-open' : ''}`} aria-label="Workspace navigation">
-      <div className="sidebar-brand-row"><BrandMark compact /><button className="sidebar-collapse-button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button><button ref={mobileCloseRef} className="sidebar-mobile-close" aria-label="Close navigation" onClick={() => setMobileOpen(false)}><X size={18} /></button></div>
+      <div className="sidebar-brand-row">
+        {!collapsed ? (
+          <>
+            <BrandMark compact />
+            <button
+              className="sidebar-collapse-button"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+              onClick={() => setCollapsed(true)}
+            >
+              <PanelLeftClose size={17} />
+            </button>
+          </>
+        ) : (
+          <button
+            className="sidebar-collapse-button sidebar-expand-button"
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+            onClick={() => setCollapsed(false)}
+          >
+            <PanelLeftOpen size={18} />
+          </button>
+        )}
+        <button ref={mobileCloseRef} className="sidebar-mobile-close" aria-label="Close navigation" onClick={() => setMobileOpen(false)}>
+          <X size={18} />
+        </button>
+      </div>
       <div className="workspace-switch-wrap"><button className="workspace-switch" onClick={() => setWorkspaceOpen(!workspaceOpen)} aria-expanded={workspaceOpen}><span className="workspace-avatar">M</span><span className="workspace-details"><b>MetroVPS</b><small>Growth workspace</small></span><ChevronDown className="workspace-chevron" size={14} /></button>{workspaceOpen && <div className="workspace-menu"><b>Workspaces</b><button onClick={() => { setWorkspaceOpen(false); setNotice('You are already in the MetroVPS demo workspace.') }}><span className="workspace-avatar">M</span><span>MetroVPS <small>Current workspace</small></span></button><button onClick={() => { setWorkspaceOpen(false); setNotice('Workspace switching will connect to your backend.') }}><Plus size={15} /> Create workspace</button></div>}</div>
       <div className="sidebar-scroll">{dashboardNav.map((group) => <div className="sidebar-group" key={group.label}><div className="sidebar-group-label">{group.label}</div>{group.items.map((item) => { const Icon = iconMap[item.icon] ?? LayoutDashboard; const active = normalizedPath === item.href || normalizedPath.startsWith(`${item.href}/`); return <Link key={item.href} className={`sidebar-link ${active ? 'sidebar-link-active' : ''}`} href={item.href} title={collapsed ? item.label : undefined} aria-label={collapsed ? item.label : undefined} aria-current={active ? 'page' : undefined} onClick={() => setMobileOpen(false)}><Icon size={17} strokeWidth={active ? 2.2 : 1.8} /><span>{item.label}</span>{item.label === 'Email logs' && <i className="sidebar-live-dot" />}</Link> })}</div>)}</div>
       <div className="sidebar-bottom"><div className="usage-mini"><div className="usage-mini-top"><span>Monthly usage</span><b>64%</b></div><div className="usage-track"><i /></div><small>32,000 of 50,000 emails</small><Link href="/app/billing">View usage <span>→</span></Link></div><Link className="sidebar-help-link" href="/app/support"><LifeBuoy size={16} /><span>Help & support</span><span className="help-shortcut">?</span></Link><button className="sidebar-user" onClick={() => setProfileOpen(!profileOpen)}><span className="user-avatar">AM</span><span className="sidebar-user-name"><b>Alex Morgan</b><small>Owner</small></span><ChevronDown size={14} /></button></div>
     </aside>
 
     <div className={`dashboard-main ${collapsed ? 'dashboard-main-collapsed' : ''}`}>
-      <header className="dashboard-topbar"><div className="topbar-left"><button className="mobile-menu-button" aria-label="Open navigation" onClick={() => setMobileOpen(true)}><Menu size={19} /></button><div className="breadcrumb"><span>MetroVPS</span><i>/</i><b>{currentLabel}</b></div></div><div className="topbar-actions"><div className="global-search"><Search size={16} /><input ref={searchInputRef} aria-label="Search pages and table data" aria-autocomplete="list" aria-expanded={searchFocused && Boolean(search.trim())} aria-controls={searchFocused && search.trim() ? 'workspace-search-results' : undefined} placeholder="Search anything..." value={search} onChange={(event) => setSearch(event.target.value)} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} /><kbd>⌘ K</kbd>{searchFocused && search.trim() && <div id="workspace-search-results" className="search-results" role="region" aria-label="Workspace page search results"><small>WORKSPACE PAGES</small>{searchResults.length ? searchResults.map((item) => <Link key={item.href} href={item.href} onClick={() => setSearch('')}><span>{item.label}</span><span>↗</span></Link>) : <p>No matching pages found.</p>}</div>}</div><button className="topbar-icon-button help-top-button" aria-label="Help center" onClick={() => { window.location.href = '/app/support' }}><CircleHelp size={17} /></button><div className="topbar-popover-wrap"><button className={`topbar-icon-button ${notificationsOpen ? 'topbar-icon-active' : ''}`} aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(!notificationsOpen)}><Bell size={17} /><i /></button>{notificationsOpen && <div className="topbar-popover notification-popover"><div><b>Notifications</b><button onClick={() => setNotificationsOpen(false)}>Mark all read</button></div><p><span className="notification-icon"><ShieldBan size={14} /></span><span><b>Domain needs attention</b><small>mg.metrovps.net is missing a DKIM record.</small><em>12 minutes ago</em></span></p><p><span className="notification-icon notification-blue"><Send size={14} /></span><span><b>Campaign delivered</b><small>November product notes reached 8,420 contacts.</small><em>2 hours ago</em></span></p><Link href="/app/logs" onClick={() => setNotificationsOpen(false)}>View all activity <span>→</span></Link></div>}</div><div className="topbar-popover-wrap"><button className="topbar-profile" onClick={() => setProfileOpen(!profileOpen)} aria-expanded={profileOpen}><span className="user-avatar">AM</span><ChevronDown size={13} /></button>{profileOpen && <div className="topbar-popover profile-popover"><b>Alex Morgan</b><small>alex@metrovps.com</small><Link href="/app/settings" onClick={() => setProfileOpen(false)}><UserCircle2 size={15} /> Account settings</Link><Link href="/login" onClick={() => setProfileOpen(false)}><LogOut size={15} /> Sign out</Link></div>}</div><Button className="topbar-create" aria-expanded={quickOpen} onClick={() => setQuickOpen(!quickOpen)}><Plus size={15} /> <span>Quick create</span><ChevronDown size={13} /></Button>{quickOpen && <div className="quick-create-menu"><small>CREATE NEW</small><button onClick={() => runQuickAction('campaign')}><Send size={15} /> Email campaign</button><button onClick={() => runQuickAction('contact')}><ContactRound size={15} /> Add a contact</button><button onClick={() => runQuickAction('key')}><Braces size={15} /> API key</button><button onClick={() => runQuickAction('domain')}><Globe2 size={15} /> Sending domain</button><button onClick={() => runQuickAction('import')}><Blocks size={15} /> Import contacts</button></div>}</div></header>
+      <header className="dashboard-topbar">
+        <div className="topbar-left">
+          {collapsed && (
+            <button
+              type="button"
+              className="sidebar-expand-topbar-button"
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+              onClick={() => setCollapsed(false)}
+            >
+              <PanelLeftOpen size={16} />
+              <span>Expand sidebar</span>
+            </button>
+          )}
+          <button className="mobile-menu-button" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
+            <Menu size={19} />
+          </button>
+          <div className="breadcrumb">
+            <span>MetroVPS</span><i>/</i><b>{currentLabel}</b>
+          </div>
+        </div><div className="topbar-actions"><div className="global-search"><Search size={16} /><input ref={searchInputRef} aria-label="Search pages and table data" aria-autocomplete="list" aria-expanded={searchFocused && Boolean(search.trim())} aria-controls={searchFocused && search.trim() ? 'workspace-search-results' : undefined} placeholder="Search anything..." value={search} onChange={(event) => setSearch(event.target.value)} onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} /><kbd>⌘ K</kbd>{searchFocused && search.trim() && <div id="workspace-search-results" className="search-results" role="region" aria-label="Workspace page search results"><small>WORKSPACE PAGES</small>{searchResults.length ? searchResults.map((item) => <Link key={item.href} href={item.href} onClick={() => setSearch('')}><span>{item.label}</span><span>↗</span></Link>) : <p>No matching pages found.</p>}</div>}</div><button className="topbar-icon-button help-top-button" aria-label="Help center" onClick={() => { window.location.href = '/app/support' }}><CircleHelp size={17} /></button><div className="topbar-popover-wrap"><button className={`topbar-icon-button ${notificationsOpen ? 'topbar-icon-active' : ''}`} aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(!notificationsOpen)}><Bell size={17} /><i /></button>{notificationsOpen && <div className="topbar-popover notification-popover"><div><b>Notifications</b><button onClick={() => setNotificationsOpen(false)}>Mark all read</button></div><p><span className="notification-icon"><ShieldBan size={14} /></span><span><b>Domain needs attention</b><small>mg.metrovps.net is missing a DKIM record.</small><em>12 minutes ago</em></span></p><p><span className="notification-icon notification-blue"><Send size={14} /></span><span><b>Campaign delivered</b><small>November product notes reached 8,420 contacts.</small><em>2 hours ago</em></span></p><Link href="/app/logs" onClick={() => setNotificationsOpen(false)}>View all activity <span>→</span></Link></div>}</div><div className="topbar-popover-wrap"><button className="topbar-profile" onClick={() => setProfileOpen(!profileOpen)} aria-expanded={profileOpen}><span className="user-avatar">AM</span><ChevronDown size={13} /></button>{profileOpen && <div className="topbar-popover profile-popover"><b>Alex Morgan</b><small>alex@metrovps.com</small><Link href="/app/settings" onClick={() => setProfileOpen(false)}><UserCircle2 size={15} /> Account settings</Link><Link href="/login" onClick={() => setProfileOpen(false)}><LogOut size={15} /> Sign out</Link></div>}</div><Button className="topbar-create" aria-expanded={quickOpen} onClick={() => setQuickOpen(!quickOpen)}><Plus size={15} /> <span>Quick create</span><ChevronDown size={13} /></Button>{quickOpen && <div className="quick-create-menu"><small>CREATE NEW</small><button onClick={() => runQuickAction('campaign')}><Send size={15} /> Email campaign</button><button onClick={() => runQuickAction('contact')}><ContactRound size={15} /> Add a contact</button><button onClick={() => runQuickAction('key')}><Braces size={15} /> API key</button><button onClick={() => runQuickAction('domain')}><Globe2 size={15} /> Sending domain</button><button onClick={() => runQuickAction('import')}><Blocks size={15} /> Import contacts</button></div>}</div></header>
       <main className="dashboard-content-area"><DashboardContent route={routePath} search={search} setSearch={setSearch} onAction={(message) => setNotice(message)} onOpenAction={openAction} completed={completed} onToggleChecklist={toggleChecklist} customRows={customRows} onImportRows={addCustomRows} onCreateRows={addCustomRows} /></main>
       <footer className="dashboard-footer"><span>© 2026 MetroVPS · MetroMail frontend demo</span><span><span className="status-dot green-dot" /> All systems operational</span></footer>
     </div>
