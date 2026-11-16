@@ -9,6 +9,19 @@ export const metadata: Metadata = {
   applicationName: 'MetroMail',
   generator: 'Next.js',
   icons: { icon: '/icon.svg', apple: '/apple-icon.png' },
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: 'MetroMail by MetroVPS',
+    title: 'MetroMail | Email marketing and infrastructure by MetroVPS',
+    description: 'Bring email marketing, customer automation, transactional delivery, and developer infrastructure together in one MetroVPS workspace.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'MetroMail | Email marketing and infrastructure by MetroVPS',
+    description: 'Bring email marketing, customer automation, transactional delivery, and developer infrastructure together in one MetroVPS workspace.',
+  },
 }
 
 export const viewport: Viewport = {

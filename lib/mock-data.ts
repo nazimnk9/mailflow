@@ -61,6 +61,26 @@ const contactRows: MockRow[] = [
   { name: 'Taylor Kim', detail: 'taylor@wearemono.com · Trial', status: 'Unconfirmed', metric: '3 campaigns', date: 'Nov 11, 2026', kind: 'Contact' },
   { name: 'Casey Brooks', detail: 'casey.brooks@hey.com · Customer', status: 'Subscribed', metric: '6 campaigns', date: 'Nov 10, 2026', kind: 'Contact' },
   { name: 'Riley Morgan', detail: 'riley@coastline.shop · Lead', status: 'Subscribed', metric: '4 campaigns', date: 'Nov 09, 2026', kind: 'Contact' },
+  { name: 'Jamie Park', detail: 'jamie@northstar.io · Former subscriber', status: 'Unsubscribed', metric: '2 campaigns', date: 'Nov 07, 2026', kind: 'Contact' },
+  { name: 'Sam Reed', detail: 'sam@studiojuniper.co · Suppressed by request', status: 'Blocklisted', metric: '0 campaigns', date: 'Nov 05, 2026', kind: 'Contact' },
+]
+
+const contactListRows: MockRow[] = [
+  { name: 'Product updates', detail: 'Marketing list · Monthly product news', status: 'Active', metric: '6,804 contacts', date: 'Updated Nov 14, 2026', kind: 'List' },
+  { name: 'New subscribers', detail: 'Signup form · Welcome series', status: 'Active', metric: '4,420 contacts', date: 'Updated Nov 12, 2026', kind: 'List' },
+  { name: 'Beta customers', detail: 'Imported list · Product research', status: 'Active', metric: '1,206 contacts', date: 'Updated Nov 08, 2026', kind: 'List' },
+]
+
+const signupFormRows: MockRow[] = [
+  { name: 'Product newsletter', detail: 'Embedded form · /subscribe', status: 'Published', metric: '1,284 submissions', date: 'Updated Nov 12, 2026', kind: 'Signup form' },
+  { name: 'Product launch waitlist', detail: 'Hosted form · /early-access', status: 'Published', metric: '682 submissions', date: 'Updated Nov 07, 2026', kind: 'Signup form' },
+  { name: 'Footer signup', detail: 'Embedded form · Website footer', status: 'Draft', metric: '0 submissions', date: 'Updated Nov 03, 2026', kind: 'Signup form' },
+]
+
+const attributeRows: MockRow[] = [
+  { name: 'Lifecycle stage', detail: 'Text attribute · Used in 4 segments', status: 'Active', metric: '6 values', date: 'Created Oct 18, 2026', kind: 'Attribute' },
+  { name: 'Plan type', detail: 'Text attribute · Used in 2 segments', status: 'Active', metric: '4 values', date: 'Created Oct 22, 2026', kind: 'Attribute' },
+  { name: 'Last purchase date', detail: 'Date attribute · Used in 1 segment', status: 'Active', metric: '2,408 values', date: 'Created Oct 30, 2026', kind: 'Attribute' },
 ]
 
 const logRows: MockRow[] = [
@@ -70,6 +90,7 @@ const logRows: MockRow[] = [
   { name: 'Password reset request', detail: 'taylor@wearemono.com · API', status: 'Bounced', metric: '—', date: 'Today, 10:28 AM', kind: 'Event' },
   { name: 'November product notes', detail: 'casey.brooks@hey.com · Campaign', status: 'Clicked', metric: '124 ms', date: 'Today, 10:16 AM', kind: 'Event' },
   { name: 'Invoice ready', detail: 'riley@coastline.shop · API', status: 'Delivered', metric: '49 ms', date: 'Today, 9:58 AM', kind: 'Event' },
+  { name: 'Account security alert', detail: 'sam@studiojuniper.co · API', status: 'Failed', metric: '—', date: 'Today, 9:41 AM', kind: 'Event' },
 ]
 
 const domainRows: MockRow[] = [
@@ -93,19 +114,45 @@ const integrationRows: MockRow[] = [
 
 export function getRowsForRoute(route: string): MockRow[] {
   const normalized = route.toLowerCase()
-  if (normalized.includes('campaign')) return campaignRows
-  if (normalized.includes('contact') || normalized.includes('segment') || normalized.includes('list') || normalized.includes('form')) return contactRows
+
+  if (normalized.includes('campaign')) {
+    if (normalized.includes('ab-tests')) return [
+      { name: 'November subject line test', detail: 'Product updates · 2 variants · 4,210 recipients', status: 'Completed', metric: 'Variant B won', date: 'Nov 12, 2026', kind: 'Campaign' },
+      { name: 'Welcome subject test', detail: 'New subscribers · 2 variants · 1,042 recipients', status: 'Running', metric: 'Collecting results', date: 'Nov 16, 2026', kind: 'Campaign' },
+    ]
+    if (normalized.endsWith('/drafts')) return campaignRows.filter((row) => row.status === 'Draft')
+    if (normalized.endsWith('/scheduled')) return campaignRows.filter((row) => row.status === 'Scheduled')
+    if (normalized.endsWith('/sent')) return campaignRows.filter((row) => row.status === 'Sent')
+    return campaignRows
+  }
+
+  if (normalized.includes('contact') || normalized.includes('segment') || normalized.includes('list') || normalized.includes('form')) {
+    if (normalized.endsWith('/lists')) return contactListRows
+    if (normalized.endsWith('/forms')) return signupFormRows
+    if (normalized.endsWith('/attributes')) return attributeRows
+    if (normalized.endsWith('/unsubscribed')) return contactRows.filter((row) => row.status === 'Unsubscribed')
+    if (normalized.endsWith('/blocklisted')) return contactRows.filter((row) => row.status === 'Blocklisted')
+    return contactRows
+  }
+
+  if (normalized.includes('logs')) {
+    if (normalized.endsWith('/delivered')) return logRows.filter((row) => row.status === 'Delivered')
+    if (normalized.endsWith('/bounced')) return logRows.filter((row) => row.status === 'Bounced')
+    if (normalized.endsWith('/failed')) return logRows.filter((row) => row.status === 'Failed')
+    if (normalized.endsWith('/opened')) return logRows.filter((row) => row.status === 'Opened')
+    if (normalized.endsWith('/clicked')) return logRows.filter((row) => row.status === 'Clicked')
+    return logRows
+  }
+
   if (normalized.includes('domain')) return domainRows
   if (normalized.includes('key') || normalized.includes('api') || normalized.includes('smtp')) return keyRows
   if (normalized.includes('integration')) return integrationRows
-  if (normalized.includes('suppress') || normalized.includes('bounce') || normalized.includes('unsubscribe') || normalized.includes('complaint')) {
-    return [
-      { name: 'bad-address@sample.co', detail: 'Hard bounce · Invalid mailbox', status: 'Bounced', metric: 'Permanent', date: 'Nov 14, 2026', kind: 'Suppression' },
-      { name: 'no-longer@sample.co', detail: 'Unsubscribe · Campaign', status: 'Unsubscribed', metric: 'Marketing', date: 'Nov 12, 2026', kind: 'Suppression' },
-      { name: 'abuse@sample.co', detail: 'Spam complaint · Gmail', status: 'Complaint', metric: 'High priority', date: 'Nov 08, 2026', kind: 'Suppression' },
-      { name: 'safe@sample.co', detail: 'Allowlisted · Manual review', status: 'Allowlisted', metric: 'Transactional', date: 'Nov 02, 2026', kind: 'Suppression' },
-    ]
-  }
+  if (normalized.includes('suppress') || normalized.includes('bounce') || normalized.includes('unsubscribe') || normalized.includes('complaint')) return [
+    { name: 'bad-address@sample.co', detail: 'Hard bounce · Invalid mailbox', status: 'Bounced', metric: 'Permanent', date: 'Nov 14, 2026', kind: 'Suppression' },
+    { name: 'no-longer@sample.co', detail: 'Unsubscribe · Campaign', status: 'Unsubscribed', metric: 'Marketing', date: 'Nov 12, 2026', kind: 'Suppression' },
+    { name: 'abuse@sample.co', detail: 'Spam complaint · Gmail', status: 'Complaint', metric: 'High priority', date: 'Nov 08, 2026', kind: 'Suppression' },
+    { name: 'safe@sample.co', detail: 'Allowlisted · Manual review', status: 'Allowlisted', metric: 'Transactional', date: 'Nov 02, 2026', kind: 'Suppression' },
+  ]
   if (normalized.includes('billing')) return [
     { name: 'October 2026', detail: 'MetroMail Growth · Visa ending 4242', status: 'Paid', metric: '$49.00', date: 'Nov 01, 2026', kind: 'Invoice' },
     { name: 'September 2026', detail: 'MetroMail Growth · Visa ending 4242', status: 'Paid', metric: '$49.00', date: 'Oct 01, 2026', kind: 'Invoice' },
