@@ -91,6 +91,9 @@ const logRows: MockRow[] = [
   { name: 'November product notes', detail: 'casey.brooks@hey.com · Campaign', status: 'Clicked', metric: '124 ms', date: 'Today, 10:16 AM', kind: 'Event' },
   { name: 'Invoice ready', detail: 'riley@coastline.shop · API', status: 'Delivered', metric: '49 ms', date: 'Today, 9:58 AM', kind: 'Event' },
   { name: 'Account security alert', detail: 'sam@studiojuniper.co · API', status: 'Failed', metric: '—', date: 'Today, 9:41 AM', kind: 'Event' },
+  { name: 'Welcome discount', detail: 'noah@northstar.io · Campaign', status: 'Rejected', metric: 'Mailbox policy', date: 'Today, 9:34 AM', kind: 'Event' },
+  { name: 'Weekly digest', detail: 'alex@coastline.shop · Campaign', status: 'Complaint', metric: 'Spam report', date: 'Today, 9:19 AM', kind: 'Event' },
+  { name: 'Product launch update', detail: 'lee@studiojuniper.co · Campaign', status: 'Unsubscribed', metric: 'Preference center', date: 'Today, 9:02 AM', kind: 'Event' },
 ]
 
 const domainRows: MockRow[] = [
@@ -141,18 +144,30 @@ export function getRowsForRoute(route: string): MockRow[] {
     if (normalized.endsWith('/failed')) return logRows.filter((row) => row.status === 'Failed')
     if (normalized.endsWith('/opened')) return logRows.filter((row) => row.status === 'Opened')
     if (normalized.endsWith('/clicked')) return logRows.filter((row) => row.status === 'Clicked')
+    if (normalized.endsWith('/rejected')) return logRows.filter((row) => row.status === 'Rejected')
+    if (normalized.endsWith('/complaints')) return logRows.filter((row) => row.status === 'Complaint')
+    if (normalized.endsWith('/unsubscribes')) return logRows.filter((row) => row.status === 'Unsubscribed')
     return logRows
   }
 
   if (normalized.includes('domain')) return domainRows
   if (normalized.includes('key') || normalized.includes('api') || normalized.includes('smtp')) return keyRows
   if (normalized.includes('integration')) return integrationRows
-  if (normalized.includes('suppress') || normalized.includes('bounce') || normalized.includes('unsubscribe') || normalized.includes('complaint')) return [
-    { name: 'bad-address@sample.co', detail: 'Hard bounce · Invalid mailbox', status: 'Bounced', metric: 'Permanent', date: 'Nov 14, 2026', kind: 'Suppression' },
-    { name: 'no-longer@sample.co', detail: 'Unsubscribe · Campaign', status: 'Unsubscribed', metric: 'Marketing', date: 'Nov 12, 2026', kind: 'Suppression' },
-    { name: 'abuse@sample.co', detail: 'Spam complaint · Gmail', status: 'Complaint', metric: 'High priority', date: 'Nov 08, 2026', kind: 'Suppression' },
-    { name: 'safe@sample.co', detail: 'Allowlisted · Manual review', status: 'Allowlisted', metric: 'Transactional', date: 'Nov 02, 2026', kind: 'Suppression' },
-  ]
+  if (normalized.includes('suppress') || normalized.includes('bounce') || normalized.includes('unsubscribe') || normalized.includes('complaint')) {
+    const suppressionRows: MockRow[] = [
+      { name: 'bad-address@sample.co', detail: 'Hard bounce · Invalid mailbox', status: 'Bounced', metric: 'Permanent', date: 'Nov 14, 2026', kind: 'Suppression' },
+      { name: 'no-longer@sample.co', detail: 'Unsubscribe · Campaign', status: 'Unsubscribed', metric: 'Marketing', date: 'Nov 12, 2026', kind: 'Suppression' },
+      { name: 'abuse@sample.co', detail: 'Spam complaint · Gmail', status: 'Complaint', metric: 'High priority', date: 'Nov 08, 2026', kind: 'Suppression' },
+      { name: 'safe@sample.co', detail: 'Allowlisted · Manual review', status: 'Allowlisted', metric: 'Transactional', date: 'Nov 02, 2026', kind: 'Suppression' },
+      { name: 'blocked@sample.co', detail: 'Manual block · Account request', status: 'Blocklisted', metric: 'Manual', date: 'Oct 28, 2026', kind: 'Suppression' },
+    ]
+    if (normalized.endsWith('/bounces')) return suppressionRows.filter((row) => row.status === 'Bounced')
+    if (normalized.endsWith('/unsubscribes')) return suppressionRows.filter((row) => row.status === 'Unsubscribed')
+    if (normalized.endsWith('/complaints')) return suppressionRows.filter((row) => row.status === 'Complaint')
+    if (normalized.endsWith('/blocklist')) return suppressionRows.filter((row) => row.status === 'Blocklisted')
+    if (normalized.endsWith('/allowlist')) return suppressionRows.filter((row) => row.status === 'Allowlisted')
+    return suppressionRows
+  }
   if (normalized.includes('billing')) return [
     { name: 'October 2026', detail: 'MetroMail Growth · Visa ending 4242', status: 'Paid', metric: '$49.00', date: 'Nov 01, 2026', kind: 'Invoice' },
     { name: 'September 2026', detail: 'MetroMail Growth · Visa ending 4242', status: 'Paid', metric: '$49.00', date: 'Oct 01, 2026', kind: 'Invoice' },
