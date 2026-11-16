@@ -1,10 +1,13 @@
 'use client'
 
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { DataExportMenu } from '@/components/data-export-menu'
+import { TablePagination } from '@/components/table-pagination'
+import { isWithinDateRange } from '@/lib/table-utils'
 import Link from 'next/link'
 import { ArrowDownToLine, ArrowLeft, ArrowRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Code2, CreditCard, Mail, MoreHorizontal, Plus, Search, ShieldCheck, Users, Webhook } from 'lucide-react'
 
-type ExtraPageProps = { route: string; onAction: (message: string) => void; onOpenTicket: () => void }
+type ExtraPageProps = { route: string; search: string; setSearch: (value: string) => void; onAction: (message: string) => void; onOpenTicket: () => void }
 
 const extraRoutes = new Set([
   'campaigns/calendar',
@@ -29,18 +32,18 @@ export function hasDashboardExtraPage(route: string) {
   return extraRoutes.has(route) || route.startsWith('api-keys/requests/')
 }
 
-export function DashboardExtraPage({ route, onAction, onOpenTicket }: ExtraPageProps) {
+export function DashboardExtraPage({ route, search, setSearch, onAction, onOpenTicket }: ExtraPageProps) {
   let content: ReactNode = null
   if (route === 'campaigns/calendar') content = <CampaignCalendarPage onAction={onAction} />
   else if (route === 'campaigns/templates') content = <CampaignTemplatesPage onAction={onAction} />
   else if (route === 'contacts/tags') content = <ContactTagsPage onAction={onAction} />
   else if (route === 'contacts/preferences') content = <ContactPreferencesPage onAction={onAction} />
-  else if (route === 'api-keys/requests') content = <ApiRequestLogsPage onAction={onAction} />
+  else if (route === 'api-keys/requests') content = <ApiRequestLogsPage onAction={onAction} search={search} setSearch={setSearch} />
   else if (route.startsWith('api-keys/requests/')) content = <ApiRequestDetailPage route={route} onAction={onAction} />
-  else if (route === 'webhooks/deliveries') content = <WebhookDeliveriesPage onAction={onAction} />
+  else if (route === 'webhooks/deliveries') content = <WebhookDeliveriesPage onAction={onAction} search={search} setSearch={setSearch} />
   else if (route === 'support/tickets') content = <SupportTicketsPage onOpenTicket={onOpenTicket} />
   else if (route.startsWith('billing/')) content = <BillingSubpage route={route} onAction={onAction} />
-  else if (route.startsWith('analytics/')) content = <AnalyticsBreakdownPage route={route} onAction={onAction} />
+  else if (route.startsWith('analytics/')) content = <AnalyticsBreakdownPage route={route} onAction={onAction} search={search} setSearch={setSearch} />
   return <><ExtraSectionTabs route={route} />{content}</>
 }
 
@@ -205,20 +208,30 @@ const requestRows = [
   { id: 'req_4dc613aa', method: 'POST', path: '/v1/messages', status: 401, latency: '12 ms', time: 'Today, 10:26:49 AM' },
 ]
 
-function ApiRequestLogsPage({ onAction }: { onAction: (message: string) => void }) {
-  const [query, setQuery] = useState('')
+function ApiRequestLogsPage({ onAction, search, setSearch }: { onAction: (message: string) => void; search: string; setSearch: (value: string) => void }) {
   const [status, setStatus] = useState('All responses')
-  const filtered = requestRows.filter((row) => (status === 'All responses' || String(row.status).startsWith(status)) && `${row.id} ${row.method} ${row.path}`.toLowerCase().includes(query.toLowerCase()))
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageSize, setPageSize] = useState(3)
+  const filtered = requestRows.filter((row) => (status === 'All responses' || String(row.status).startsWith(status)) && `${row.id} ${row.method} ${row.path} ${row.status} ${row.latency} ${row.time}`.toLowerCase().includes(search.trim().toLowerCase()) && isWithinDateRange(row.time, startDate, endDate))
+  const pageRows = filtered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
+  const dateRangeError = Boolean(startDate && endDate && startDate > endDate)
+  useEffect(() => setPageIndex(0), [search, status, startDate, endDate])
+  const resetFilters = () => { setSearch(''); setStatus('All responses'); setStartDate(''); setEndDate('') }
+  const exportRows = filtered.map((row) => ({ Request: row.id, Method: row.method, Endpoint: row.path, Response: row.status, Latency: row.latency, Time: row.time }))
   return <div className="extra-page">
     <PageHeading eyebrow="DEVELOPER TOOLS / OBSERVABILITY" title="API request logs" description="Inspect request outcomes and troubleshoot integration issues.">
-      <button className="button button-secondary" onClick={() => onAction('API request logs exported as CSV.')}><ArrowDownToLine size={14} /> Export logs</button>
+      <DataExportMenu rows={exportRows} fileName="api-request-logs" onAction={onAction} />
       <Link className="button button-primary" href="/app/api-keys/docs">API documentation <Code2 size={14} /></Link>
     </PageHeading>
     <section className="extra-metric-row">{[['Requests today', '12,408', '+18.2%'], ['Success rate', '99.4%', '+0.8%'], ['Median latency', '42 ms', '−6 ms']].map(([label, value, change]) => <article className="extra-metric-card" key={label}><small>{label}</small><b>{value}</b><span>{change} vs. prior period</span></article>)}</section>
-    <Panel title="Recent API requests" description={`${filtered.length} requests in the selected view`} action={<div className="extra-table-filters"><label className="extra-search"><Search size={14} /><input aria-label="Search API requests" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search request ID or path" /></label><select aria-label="Filter response status" value={status} onChange={(event) => setStatus(event.target.value)}><option>All responses</option><option>2</option><option>4</option></select></div>}>
-      <div className="extra-table-wrap"><table className="extra-table"><thead><tr><th>Request</th><th>Method</th><th>Endpoint</th><th>Response</th><th>Latency</th><th>Time</th><th><span className="sr-only">Open request</span></th></tr></thead><tbody>{filtered.map((row) => <tr key={row.id}><td><Link className="extra-mono-link" href={`/app/api-keys/requests/${row.id}`}>{row.id}</Link></td><td><span className={`extra-method method-${row.method.toLowerCase()}`}>{row.method}</span></td><td><code>{row.path}</code></td><td><span className={`extra-response ${row.status >= 400 ? 'response-error' : 'response-success'}`}>{row.status}</span></td><td>{row.latency}</td><td>{row.time}</td><td><Link aria-label={`View ${row.id} details`} href={`/app/api-keys/requests/${row.id}`}><ArrowRight size={14} /></Link></td></tr>)}</tbody></table></div>
-      <div className="extra-mobile-list">{filtered.map((row) => <Link className="extra-request-card" key={row.id} href={`/app/api-keys/requests/${row.id}`}><div><b>{row.method} <code>{row.path}</code></b><small>{row.id} · {row.time}</small></div><span className={`extra-response ${row.status >= 400 ? 'response-error' : 'response-success'}`}>{row.status}</span></Link>)}</div>
-      {filtered.length === 0 && <div className="extra-empty-inline">No requests match these filters.</div>}
+    <Panel title="Recent API requests" description={`${filtered.length} requests in the selected view`}>
+      <div className="table-filter-bar extra-table-filter-bar"><label className="table-search-control"><Search size={15} aria-hidden="true" /><input aria-label="Search API request data" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search ID, endpoint, response…" />{search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')}>×</button>}</label><div className="table-filter-controls"><label className="table-filter-control"><span>Response</span><select aria-label="Filter response status" value={status} onChange={(event) => setStatus(event.target.value)}><option>All responses</option><option value="2">Successful (2xx)</option><option value="4">Errors (4xx)</option></select></label><label className="table-filter-control table-date-control"><span>Start date</span><input aria-label="Start date" type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} /></label><label className="table-filter-control table-date-control"><span>End date</span><input aria-label="End date" type="date" value={endDate} min={startDate || undefined} aria-invalid={dateRangeError} onChange={(event) => setEndDate(event.target.value)} /></label><button className="table-reset-button" type="button" disabled={!search && status === 'All responses' && !startDate && !endDate} onClick={resetFilters}>Reset</button></div>{dateRangeError && <p className="table-filter-error" role="alert">Start date must be on or before the end date.</p>}</div>
+      <div className="extra-table-wrap"><table className="extra-table"><thead><tr><th>Request</th><th>Method</th><th>Endpoint</th><th>Response</th><th>Latency</th><th>Time</th><th><span className="sr-only">Open request</span></th></tr></thead><tbody>{pageRows.map((row) => <tr key={row.id}><td><Link className="extra-mono-link" href={`/app/api-keys/requests/${row.id}`}>{row.id}</Link></td><td><span className={`extra-method method-${row.method.toLowerCase()}`}>{row.method}</span></td><td><code>{row.path}</code></td><td><span className={`extra-response ${row.status >= 400 ? 'response-error' : 'response-success'}`}>{row.status}</span></td><td>{row.latency}</td><td>{row.time}</td><td><Link aria-label={`View ${row.id} details`} href={`/app/api-keys/requests/${row.id}`}><ArrowRight size={14} /></Link></td></tr>)}</tbody></table></div>
+      <div className="extra-mobile-list">{pageRows.map((row) => <Link className="extra-request-card" key={row.id} href={`/app/api-keys/requests/${row.id}`}><div><b>{row.method} <code>{row.path}</code></b><small>{row.id} · {row.time}</small></div><span className={`extra-response ${row.status >= 400 ? 'response-error' : 'response-success'}`}>{row.status}</span></Link>)}</div>
+      {filtered.length === 0 && <div className="extra-table-empty">No requests match these filters.</div>}
+      <TablePagination pageIndex={pageIndex} pageSize={pageSize} totalItems={filtered.length} pageSizeOptions={[3, 5, 10]} onPageChange={setPageIndex} onPageSizeChange={setPageSize} />
     </Panel>
   </div>
 }
@@ -237,20 +250,36 @@ function ApiRequestDetailPage({ route, onAction }: { route: string; onAction: (m
   </div>
 }
 
-function WebhookDeliveriesPage({ onAction }: { onAction: (message: string) => void }) {
+function WebhookDeliveriesPage({ onAction, search, setSearch }: { onAction: (message: string) => void; search: string; setSearch: (value: string) => void }) {
   const deliveries = [
-    ['message.delivered', '2xx', 'Today, 10:42:11 AM', '84 ms'], ['message.opened', '2xx', 'Today, 10:40:06 AM', '92 ms'], ['message.bounced', '5xx', 'Today, 10:35:24 AM', '1.2 s'], ['message.clicked', '2xx', 'Today, 10:28:19 AM', '76 ms'],
+    { event: 'message.delivered', response: '2xx', time: 'Today, 10:42:11 AM', duration: '84 ms', endpoint: 'api.metrovps.com/webhooks/email' },
+    { event: 'message.opened', response: '2xx', time: 'Today, 10:40:06 AM', duration: '92 ms', endpoint: 'api.metrovps.com/webhooks/email' },
+    { event: 'message.bounced', response: '5xx', time: 'Today, 10:35:24 AM', duration: '1.2 s', endpoint: 'api.metrovps.com/webhooks/email' },
+    { event: 'message.clicked', response: '2xx', time: 'Today, 10:28:19 AM', duration: '76 ms', endpoint: 'api.metrovps.com/webhooks/email' },
   ]
   const [filter, setFilter] = useState('All deliveries')
-  const filtered = deliveries.filter((item) => filter === 'All deliveries' || (filter === 'Failed' ? item[1] === '5xx' : item[1] === '2xx'))
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageSize, setPageSize] = useState(3)
+  const filtered = deliveries.filter((item) => (filter === 'All deliveries' || (filter === 'Failed' ? item.response === '5xx' : item.response === '2xx')) && `${item.event} ${item.response} ${item.time} ${item.duration} ${item.endpoint}`.toLowerCase().includes(search.trim().toLowerCase()) && isWithinDateRange(item.time, startDate, endDate))
+  const pageRows = filtered.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
+  const dateRangeError = Boolean(startDate && endDate && startDate > endDate)
+  useEffect(() => setPageIndex(0), [filter, search, startDate, endDate])
+  const resetFilters = () => { setSearch(''); setFilter('All deliveries'); setStartDate(''); setEndDate('') }
+  const exportRows = filtered.map(({ event, response, time, duration, endpoint }) => ({ Event: event, Response: response, 'Delivered at': time, Duration: duration, Endpoint: endpoint }))
   return <div className="extra-page">
     <PageHeading eyebrow="DEVELOPER TOOLS / WEBHOOKS" title="Webhook deliveries" description="Review endpoint responses and retry failed event deliveries.">
+      <DataExportMenu rows={exportRows} fileName="webhook-deliveries" onAction={onAction} />
       <Link className="button button-secondary" href="/app/webhooks"><ArrowLeft size={14} /> Webhook settings</Link>
       <button className="button button-primary" onClick={() => onAction('Failed webhook deliveries queued for retry in this demo.')}><Webhook size={14} /> Retry failed</button>
     </PageHeading>
-    <Panel title="Delivery attempts" description="Recent events sent to your production endpoint" action={<select aria-label="Filter webhook deliveries" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All deliveries</option><option>Successful</option><option>Failed</option></select>}>
-      <div className="extra-table-wrap"><table className="extra-table"><thead><tr><th>Event</th><th>Response</th><th>Delivered at</th><th>Duration</th><th>Endpoint</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filtered.map(([event, response, time, duration]) => <tr key={`${event}-${time}`}><td><code>{event}</code></td><td><span className={`extra-response ${response === '2xx' ? 'response-success' : 'response-error'}`}>{response}</span></td><td>{time}</td><td>{duration}</td><td className="extra-endpoint-cell">api.metrovps.com/webhooks/email</td><td><button aria-label={`Open ${event} delivery`} onClick={() => onAction(`${event} delivery details opened.`)}><ArrowRight size={14} /></button></td></tr>)}</tbody></table></div>
-      <div className="extra-mobile-list">{filtered.map(([event, response, time, duration]) => <article className="extra-request-card" key={`${event}-${time}`}><div><b><code>{event}</code></b><small>{time} · {duration}</small></div><span className={`extra-response ${response === '2xx' ? 'response-success' : 'response-error'}`}>{response}</span></article>)}</div>
+    <Panel title="Delivery attempts" description={`${filtered.length} recent events sent to your production endpoint`}>
+      <div className="table-filter-bar extra-table-filter-bar"><label className="table-search-control"><Search size={15} aria-hidden="true" /><input aria-label="Search webhook delivery data" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search events, responses, endpoints…" />{search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')}>×</button>}</label><div className="table-filter-controls"><label className="table-filter-control"><span>Response</span><select aria-label="Filter webhook deliveries" value={filter} onChange={(event) => setFilter(event.target.value)}><option>All deliveries</option><option>Successful</option><option>Failed</option></select></label><label className="table-filter-control table-date-control"><span>Start date</span><input aria-label="Start date" type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} /></label><label className="table-filter-control table-date-control"><span>End date</span><input aria-label="End date" type="date" value={endDate} min={startDate || undefined} aria-invalid={dateRangeError} onChange={(event) => setEndDate(event.target.value)} /></label><button className="table-reset-button" type="button" disabled={!search && filter === 'All deliveries' && !startDate && !endDate} onClick={resetFilters}>Reset</button></div>{dateRangeError && <p className="table-filter-error" role="alert">Start date must be on or before the end date.</p>}</div>
+      <div className="extra-table-wrap"><table className="extra-table"><thead><tr><th>Event</th><th>Response</th><th>Delivered at</th><th>Duration</th><th>Endpoint</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{pageRows.map(({ event, response, time, duration, endpoint }) => <tr key={`${event}-${time}`}><td><code>{event}</code></td><td><span className={`extra-response ${response === '2xx' ? 'response-success' : 'response-error'}`}>{response}</span></td><td>{time}</td><td>{duration}</td><td className="extra-endpoint-cell">{endpoint}</td><td><button aria-label={`Open ${event} delivery`} onClick={() => onAction(`${event} delivery details opened.`)}><ArrowRight size={14} /></button></td></tr>)}</tbody></table></div>
+      <div className="extra-mobile-list">{pageRows.map(({ event, response, time, duration }) => <article className="extra-request-card" key={`${event}-${time}`}><div><b><code>{event}</code></b><small>{time} · {duration}</small></div><span className={`extra-response ${response === '2xx' ? 'response-success' : 'response-error'}`}>{response}</span></article>)}</div>
+      {filtered.length === 0 && <div className="extra-table-empty">No webhook deliveries match these filters.</div>}
+      <TablePagination pageIndex={pageIndex} pageSize={pageSize} totalItems={filtered.length} pageSizeOptions={[3, 5, 10]} onPageChange={setPageIndex} onPageSizeChange={setPageSize} />
     </Panel>
   </div>
 }
@@ -282,14 +311,39 @@ function BillingSubpage({ route, onAction }: { route: string; onAction: (message
   return <div className="extra-page"><PageHeading eyebrow="BILLING / INVOICES" title="Invoices" description="Review and export your past billing statements." /><Panel title="Invoice history" description="All amounts shown in USD" ><div className="extra-invoice-list">{[['November 2026', '$49.00', 'Nov 01, 2026'], ['October 2026', '$49.00', 'Oct 01, 2026'], ['September 2026', '$49.00', 'Sep 01, 2026'], ['August 2026', '$49.00', 'Aug 01, 2026']].map(([month, amount, date]) => <article key={month}><span className="extra-invoice-icon"><ArrowDownToLine size={15} /></span><div><b>{month}</b><small>MetroMail Growth · Paid {date}</small></div><strong>{amount}</strong><button className="button button-secondary" onClick={() => onAction(`${month} invoice downloaded.`)}>Download</button></article>)}</div></Panel></div>
 }
 
-function AnalyticsBreakdownPage({ route, onAction }: { route: string; onAction: (message: string) => void }) {
-  const config: Record<string, { title: string; description: string; rows: [string, string, string, string][] }> = {
-    'analytics/campaigns': { title: 'Campaign performance', description: 'Compare campaign delivery and engagement side by side.', rows: [['November product notes', '8,420', '42.8%', '8.6%'], ['Fall collection is here', '12,208', '38.2%', '7.4%'], ['October round-up', '7,612', '45.1%', '9.2%']] },
-    'analytics/domains': { title: 'Domain performance', description: 'Compare deliverability health across your sending domains.', rows: [['mail.metrovps.com', '99.98%', '0.02%', 'Healthy'], ['updates.metrovps.com', '98.4%', '0.04%', 'Healthy'], ['mg.metrovps.net', '94.2%', '0.12%', 'Needs attention']] },
-    'analytics/devices': { title: 'Device analytics', description: 'See how subscribers read and interact with your email.', rows: [['Mobile', '58.4%', '4,892', 'iOS · Android'], ['Desktop', '34.2%', '2,866', 'Web clients'], ['Tablet', '7.4%', '621', 'iPad · Android']] },
-    'analytics/geography': { title: 'Geographic analytics', description: 'Understand engagement across your audience locations.', rows: [['United States', '48.6%', '4,086', 'North America'], ['United Kingdom', '16.2%', '1,361', 'Europe'], ['Canada', '12.8%', '1,075', 'North America'], ['Germany', '8.4%', '706', 'Europe']] },
-    'analytics/providers': { title: 'Email provider analytics', description: 'Compare delivery and engagement by mailbox provider.', rows: [['Gmail', '54.8%', '4,609', '99.6% delivered'], ['Apple Mail', '18.2%', '1,531', '99.8% delivered'], ['Outlook', '15.4%', '1,295', '98.9% delivered'], ['Other', '11.6%', '975', '99.1% delivered']] },
+function AnalyticsBreakdownPage({ route, onAction, search, setSearch }: { route: string; onAction: (message: string) => void; search: string; setSearch: (value: string) => void }) {
+  type AnalyticsRow = [string, string, string, string, string]
+  const config: Record<string, { title: string; description: string; rows: AnalyticsRow[] }> = {
+    'analytics/campaigns': { title: 'Campaign performance', description: 'Compare campaign delivery and engagement side by side.', rows: [['November product notes', '8,420', '42.8%', '8.6%', '2026-11-12'], ['Fall collection is here', '12,208', '38.2%', '7.4%', '2026-11-08'], ['October round-up', '7,612', '45.1%', '9.2%', '2026-10-30']] },
+    'analytics/domains': { title: 'Domain performance', description: 'Compare deliverability health across your sending domains.', rows: [['mail.metrovps.com', '99.98%', '0.02%', 'Healthy', '2026-10-18'], ['updates.metrovps.com', '98.4%', '0.04%', 'Healthy', '2026-10-08'], ['mg.metrovps.net', '94.2%', '0.12%', 'Needs attention', '2026-11-14']] },
+    'analytics/devices': { title: 'Device analytics', description: 'Search and compare engagement across subscriber devices and email clients.', rows: [['iPhone', '38.6%', '3,240', 'Mobile · iOS · Apple Mail', '2026-11-16'], ['Android phone', '19.8%', '1,652', 'Mobile · Android · Gmail', '2026-11-15'], ['Chrome desktop', '16.4%', '1,379', 'Desktop · Web client', '2026-11-14'], ['Outlook desktop', '17.8%', '1,487', 'Desktop · Outlook', '2026-11-13'], ['iPad', '6.2%', '521', 'Tablet · iPadOS', '2026-11-12'], ['Android tablet', '1.2%', '100', 'Tablet · Android', '2026-11-11']] },
+    'analytics/geography': { title: 'Geographic analytics', description: 'Understand engagement across your audience locations.', rows: [['United States', '48.6%', '4,086', 'North America', '2026-11-16'], ['United Kingdom', '16.2%', '1,361', 'Europe', '2026-11-14'], ['Canada', '12.8%', '1,075', 'North America', '2026-11-12'], ['Germany', '8.4%', '706', 'Europe', '2026-11-10']] },
+    'analytics/providers': { title: 'Email provider analytics', description: 'Compare delivery and engagement by mailbox provider.', rows: [['Gmail', '54.8%', '4,609', '99.6% delivered', '2026-11-16'], ['Apple Mail', '18.2%', '1,531', '99.8% delivered', '2026-11-14'], ['Outlook', '15.4%', '1,295', '98.9% delivered', '2026-11-12'], ['Other', '11.6%', '975', '99.1% delivered', '2026-11-10']] },
   }
   const data = config[route]
-  return <div className="extra-page"><PageHeading eyebrow="INSIGHTS / BREAKDOWN" title={data.title} description={data.description}><button className="button button-secondary" onClick={() => onAction(`${data.title} exported as CSV.`)}><ArrowDownToLine size={14} /> Export</button></PageHeading><section className="extra-analytics-summary">{[['Volume', '8,420'], ['Engagement', '42.8%'], ['Change vs. prior period', '+3.4%']].map(([label, value]) => <article key={label}><small>{label}</small><b>{value}</b></article>)}</section><Panel title={data.title} description="Last 30 days · Sample data"><div className="extra-table-wrap"><table className="extra-table"><thead><tr><th>{route === 'analytics/campaigns' ? 'Campaign' : route === 'analytics/domains' ? 'Sending domain' : route === 'analytics/devices' ? 'Device' : route === 'analytics/geography' ? 'Location' : 'Mailbox provider'}</th><th>{route === 'analytics/domains' ? 'Delivery rate' : route === 'analytics/campaigns' ? 'Recipients' : 'Audience share'}</th><th>{route === 'analytics/campaigns' ? 'Open rate' : route === 'analytics/domains' ? 'Complaint rate' : 'Engaged contacts'}</th><th>{route === 'analytics/campaigns' ? 'Click rate' : route === 'analytics/domains' ? 'Health' : 'Delivery'}</th></tr></thead><tbody>{data.rows.map(([first, second, third, fourth]) => <tr key={first}><td><b>{first}</b></td><td>{second}</td><td>{third}</td><td>{fourth}</td></tr>)}</tbody></table></div><div className="extra-breakdown-bars">{data.rows.map(([label, value], index) => <div key={label}><span>{label}</span><i><em style={{ width: `${Math.max(22, 84 - index * 16)}%` }} /></i></div>)}</div></Panel></div>
+  const [category, setCategory] = useState(route === 'analytics/devices' ? 'All devices' : 'All categories')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageSize, setPageSize] = useState(5)
+  const categoryLabel = route === 'analytics/devices' ? 'Device group' : 'Category'
+  const allCategoryLabel = route === 'analytics/devices' ? 'All devices' : 'All categories'
+  const columnHeaders = route === 'analytics/campaigns' ? ['Campaign', 'Recipients', 'Open rate', 'Click rate', 'Sent date'] : route === 'analytics/domains' ? ['Sending domain', 'Delivery rate', 'Complaint rate', 'Health', 'Date added'] : route === 'analytics/devices' ? ['Device', 'Audience share', 'Engaged contacts', 'Client / platform', 'Date observed'] : route === 'analytics/geography' ? ['Location', 'Audience share', 'Engaged contacts', 'Region', 'Date observed'] : ['Mailbox provider', 'Audience share', 'Engaged contacts', 'Delivery', 'Date observed']
+  const categories = Array.from(new Set(data.rows.map(([first]) => first)))
+  const filteredRows = data.rows.filter((row) => (category === 'All categories' || category === 'All devices' || row[0] === category) && row.join(' ').toLowerCase().includes(search.trim().toLowerCase()) && isWithinDateRange(row[4], startDate, endDate))
+  const pageRows = filteredRows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
+  const dateRangeError = Boolean(startDate && endDate && startDate > endDate)
+  useEffect(() => {
+    setCategory(route === 'analytics/devices' ? 'All devices' : 'All categories')
+    setStartDate('')
+    setEndDate('')
+    setPageIndex(0)
+  }, [route])
+  useEffect(() => setPageIndex(0), [search, category, startDate, endDate])
+  const resetFilters = () => { setSearch(''); setCategory(allCategoryLabel); setStartDate(''); setEndDate('') }
+  const exportRows = filteredRows.map(([first, second, third, fourth, date]) => ({ [columnHeaders[0]]: first, [columnHeaders[1]]: second, [columnHeaders[2]]: third, [columnHeaders[3]]: fourth, [columnHeaders[4]]: date }))
+  return <div className="extra-page"><PageHeading eyebrow="INSIGHTS / BREAKDOWN" title={data.title} description={data.description}><DataExportMenu rows={exportRows} fileName={route.replace('/', '-')} onAction={onAction} /></PageHeading><section className="extra-analytics-summary">{[['Volume', route === 'analytics/devices' ? '8,379' : '8,420'], ['Engagement', '42.8%'], ['Change vs. prior period', '+3.4%']].map(([label, value]) => <article key={label}><small>{label}</small><b>{value}</b></article>)}</section><Panel title={data.title} description={`${filteredRows.length} records · Sample data`}>
+    <div className="table-filter-bar extra-table-filter-bar"><label className="table-search-control"><Search size={15} aria-hidden="true" /><input aria-label={`Search ${route === 'analytics/devices' ? 'all devices' : 'all report'} data`} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={route === 'analytics/devices' ? 'Search devices, clients, platforms…' : `Search ${data.title.toLowerCase()}…`} />{search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')}>×</button>}</label><div className="table-filter-controls"><label className="table-filter-control"><span>{categoryLabel}</span><select aria-label={`Filter by ${categoryLabel.toLowerCase()}`} value={category} onChange={(event) => setCategory(event.target.value)}><option value={allCategoryLabel}>{allCategoryLabel}</option>{categories.map((value) => <option key={value}>{value}</option>)}</select></label><label className="table-filter-control table-date-control"><span>Start date</span><input aria-label="Start date" type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} /></label><label className="table-filter-control table-date-control"><span>End date</span><input aria-label="End date" type="date" value={endDate} min={startDate || undefined} aria-invalid={dateRangeError} onChange={(event) => setEndDate(event.target.value)} /></label><button className="table-reset-button" type="button" disabled={!search && (category === 'All categories' || category === 'All devices') && !startDate && !endDate} onClick={resetFilters}>Reset</button></div>{dateRangeError && <p className="table-filter-error" role="alert">Start date must be on or before the end date.</p>}</div>
+    <div className="extra-table-wrap"><table className="extra-table"><thead><tr>{columnHeaders.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{pageRows.map(([first, second, third, fourth, date]) => <tr key={first}><td><b>{first}</b></td><td>{second}</td><td>{third}</td><td>{fourth}</td><td>{date}</td></tr>)}</tbody></table></div>{filteredRows.length === 0 && <div className="extra-table-empty">No records match these filters.</div>}<TablePagination pageIndex={pageIndex} pageSize={pageSize} totalItems={filteredRows.length} pageSizeOptions={[5, 10, 20]} onPageChange={setPageIndex} onPageSizeChange={setPageSize} /><div className="extra-breakdown-bars">{filteredRows.map(([label, value], index) => <div key={label}><span>{label}</span><i><em style={{ width: `${Math.max(22, 84 - index * 10)}%` }} /></i><b>{value}</b></div>)}</div>
+  </Panel></div>
 }
