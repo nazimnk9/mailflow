@@ -3,7 +3,35 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ArrowDown, ArrowRight, ArrowUpRight, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, Code2, Globe2, Layers3, Mail, Menu, Pause, Play, Send, ShieldCheck, Sparkles, Workflow, X, Zap } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUpRight,
+  BarChart3,
+  Building2,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Code2,
+  Globe2,
+  Layers3,
+  Mail,
+  Menu,
+  Pause,
+  Play,
+  Quote,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  ThumbsUp,
+  TrendingUp,
+  Workflow,
+  X,
+  Zap,
+} from 'lucide-react'
 import { BrandMark } from '@/components/brand-mark'
 
 const products = [
@@ -36,10 +64,91 @@ const faqs = [
   ['Can I connect the platform to my existing tools?', 'The integrations area is designed for CRM, commerce, automation, and developer tools. The initial catalog is sample data until backend connections are added.'],
 ]
 
-const testimonials = [
-  { quote: 'Finally, a platform that lets our marketing and engineering teams work from the same source of truth.', name: 'Alex Morgan', role: 'Product lead · Sample testimonial', initials: 'AM' },
-  { quote: 'We can see what happens after every API send without asking our engineers to build another dashboard.', name: 'Priya Shah', role: 'Engineering lead · Sample testimonial', initials: 'PS' },
-  { quote: 'Campaigns feel simple for our team and flexible enough to grow with every customer journey.', name: 'Jordan Ellis', role: 'Lifecycle marketing · Sample testimonial', initials: 'JE' },
+export type TestimonialItem = {
+  id: string
+  quote: string
+  name: string
+  role: string
+  company: string
+  category: string
+  initials: string
+  avatarGradient: string
+  metric: string
+  metricLabel: string
+  highlightTag: string
+  tags: string[]
+  verified: boolean
+}
+
+const testimonials: TestimonialItem[] = [
+  {
+    id: 'jordan',
+    quote: 'Campaigns feel simple for our team and flexible enough to grow with every customer journey.',
+    name: 'Jordan Ellis',
+    role: 'Head of Lifecycle Marketing',
+    company: 'CraftSphere Commerce',
+    category: 'Lifecycle Marketing',
+    initials: 'JE',
+    avatarGradient: 'linear-gradient(135deg, #1374f8, #0ea5e9)',
+    metric: '+142%',
+    metricLabel: 'CTR & Open Lift',
+    highlightTag: 'Marketing Favorite',
+    tags: ['Visual Drag-and-Drop', 'Dynamic Segments', 'A/B Testing'],
+    verified: true,
+  },
+  {
+    id: 'alex',
+    quote: 'Finally, a platform that lets our marketing and engineering teams work from the same source of truth.',
+    name: 'Alex Morgan',
+    role: 'VP of Product Experience',
+    company: 'NorthStar Cloud',
+    category: 'Product Leadership',
+    initials: 'AM',
+    avatarGradient: 'linear-gradient(135deg, #7c3aed, #a855f7)',
+    metric: '3.8x',
+    metricLabel: 'Faster Campaign Launch',
+    highlightTag: 'Cross-functional',
+    tags: ['Collaborative Workflows', 'Unified Analytics', 'Shared Templates'],
+    verified: true,
+  },
+  {
+    id: 'priya',
+    quote: 'We can see what happens after every API send without asking our engineers to build another dashboard.',
+    name: 'Priya Shah',
+    role: 'Staff Infrastructure Architect',
+    company: 'FinPulse Systems',
+    category: 'Engineering & API',
+    initials: 'PS',
+    avatarGradient: 'linear-gradient(135deg, #059669, #10b981)',
+    metric: '< 18ms',
+    metricLabel: 'Global Delivery Latency',
+    highlightTag: 'Developer Loved',
+    tags: ['REST API v1', 'Real-time Webhooks', 'Flexible SMTP Relay'],
+    verified: true,
+  },
+  {
+    id: 'marcus',
+    quote: 'Our inbox placement shot up to 99.8% within two weeks of authenticating our domains with MetroMail.',
+    name: 'Marcus Vance',
+    role: 'Deliverability & Growth Lead',
+    company: 'Beacon Media Labs',
+    category: 'Deliverability & Growth',
+    initials: 'MV',
+    avatarGradient: 'linear-gradient(135deg, #ea580c, #f59e0b)',
+    metric: '99.8%',
+    metricLabel: 'Inbox Placement Rate',
+    highlightTag: 'High Reputation',
+    tags: ['DKIM & SPF Authentication', 'Reputation Shield', 'Suppression Guard'],
+    verified: true,
+  },
+]
+
+const testimonialCategories = [
+  'All Stories',
+  'Lifecycle Marketing',
+  'Product Leadership',
+  'Engineering & API',
+  'Deliverability & Growth',
 ]
 
 const pageInfo: Record<string, { eyebrow: string; title: string; description: string; bullets: string[] }> = {
@@ -69,11 +178,18 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [testimonialIndex, setTestimonialIndex] = useState(0)
+  const [selectedCategory, setSelectedCategory] = useState<string>('All Stories')
+  const [storyLikes, setStoryLikes] = useState<Record<string, { count: number; liked: boolean }>>({
+    jordan: { count: 64, liked: false },
+    alex: { count: 52, liked: false },
+    priya: { count: 79, liked: false },
+    marcus: { count: 47, liked: false },
+  })
   const [carouselHovered, setCarouselHovered] = useState(false)
   const [carouselFocused, setCarouselFocused] = useState(false)
   const [carouselPaused, setCarouselPaused] = useState(false)
   const prefersReducedMotion = useReducedMotion()
-  const activeTestimonial = testimonials[testimonialIndex]
+  const activeTestimonial = testimonials[testimonialIndex] || testimonials[0]
   useEffect(() => {
     if (prefersReducedMotion || carouselPaused || carouselHovered || carouselFocused) return
     const interval = window.setInterval(() => setTestimonialIndex((index) => (index + 1) % testimonials.length), 6500)
@@ -134,7 +250,264 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
         <section className="usecases-section"><div className="usecase-head"><div><div className="eyebrow">A PLATFORM THAT FITS YOUR TEAM</div><h2>Made for the messages that matter.</h2></div><Link href="/features" className="text-link">See all features <ArrowRight size={15} /></Link></div><div className="usecase-grid"><article><span className="usecase-icon"><Sparkles /></span><h3>Growing startups</h3><p>Move quickly with a simple platform that grows with your product.</p></article><article><span className="usecase-icon"><Globe2 /></span><h3>SaaS products</h3><p>Send reliable account, billing, and lifecycle messages as you scale.</p></article><article><span className="usecase-icon"><Layers3 /></span><h3>Commerce teams</h3><p>Connect campaigns, order notifications, and customer data.</p></article><article><span className="usecase-icon"><Code2 /></span><h3>Developers</h3><p>Integrate sending with a clean API and observability built in.</p></article></div></section>
         <section className="integration-strip"><div><div className="eyebrow">FITS YOUR EXISTING STACK</div><h2>Works with the tools you already use.</h2><p>Explore CRM, commerce, automation, and developer integrations.</p></div><div className="integration-icons"><span>H</span><span>S</span><span>z</span><span>∑</span><span>+</span></div><Link href="/integrations" className="button button-secondary">Explore integrations <ArrowRight size={14} /></Link></section>
         <section className="pricing-section"><div className="section-heading"><div className="eyebrow">SIMPLE, FLEXIBLE PRICING</div><h2>Start free. Grow at your own pace.</h2><p>Pick a plan that supports your next stage, not just where you are today.</p></div><div className="pricing-grid"><article className="price-card"><small>STARTER</small><h3>For getting going</h3><p>Try the essentials and find your rhythm.</p><div className="price-value"><b>Free</b><span>forever</span></div><ul><li><Check /> 300 emails per day</li><li><Check /> Basic campaign tools</li><li><Check /> Email API and SMTP</li></ul><Link href="/signup" className="button button-secondary full-button">Start free</Link></article><article className="price-card price-featured"><div className="popular-label">MOST POPULAR</div><small>GROWTH</small><h3>For teams in motion</h3><p>More reach, automation, and helpful insights.</p><div className="price-value"><b>$49</b><span>/ month</span></div><ul><li><Check /> 50,000 emails per month</li><li><Check /> Marketing automation</li><li><Check /> Advanced analytics</li></ul><Link href="/signup" className="button button-primary full-button">Choose Growth</Link></article><article className="price-card"><small>SCALE</small><h3>For more ambitious sends</h3><p>Additional control for growing programs.</p><div className="price-value"><b>Let’s talk</b></div><ul><li><Check /> Custom volume and limits</li><li><Check /> Priority support options</li><li><Check /> Advanced team controls</li></ul><Link href="/contact-us" className="button button-secondary full-button">Talk to our team</Link></article></div><p className="pricing-note">Illustrative pricing for this frontend demo. Plans and limits are not active billing offers.</p></section>
-        <section className="testimonial-section" role="region" aria-roledescription="carousel" aria-label="Customer testimonials" onMouseEnter={() => setCarouselHovered(true)} onMouseLeave={() => setCarouselHovered(false)} onFocusCapture={() => setCarouselFocused(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setCarouselFocused(false) }}><div className="testimonial-carousel"><div className="testimonial-mark" aria-hidden="true">“</div><div className="testimonial-slide" role="group" aria-roledescription="slide" aria-label={`${testimonialIndex + 1} of ${testimonials.length}`}><motion.blockquote key={activeTestimonial.quote} initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.3, ease: 'easeOut' }}>{activeTestimonial.quote}</motion.blockquote><div className="testimonial-author"><span className="testimonial-avatar">{activeTestimonial.initials}</span><span><b>{activeTestimonial.name}</b><small>{activeTestimonial.role}</small></span></div></div><p className="sample-note">Sample testimonials for demonstration purposes</p><div className="testimonial-controls"><button type="button" aria-label="Previous testimonial" onClick={() => setTestimonialIndex((index) => (index - 1 + testimonials.length) % testimonials.length)}><ChevronLeft size={16} /></button><div className="testimonial-dots" aria-label="Choose a testimonial">{testimonials.map((testimonial, index) => <button type="button" key={testimonial.name} aria-label={`Show testimonial ${index + 1}`} aria-pressed={testimonialIndex === index} onClick={() => setTestimonialIndex(index)} />)}</div><button type="button" aria-label="Next testimonial" onClick={() => setTestimonialIndex((index) => (index + 1) % testimonials.length)}><ChevronRight size={16} /></button><button type="button" className="testimonial-pause" aria-label={prefersReducedMotion ? 'Automatic rotation disabled by reduced motion preference' : carouselPaused ? 'Resume automatic testimonials' : 'Pause automatic testimonials'} disabled={Boolean(prefersReducedMotion)} onClick={() => setCarouselPaused((paused) => !paused)}>{carouselPaused || prefersReducedMotion ? <Play size={13} /> : <Pause size={13} />}<span>{carouselPaused || prefersReducedMotion ? 'Paused' : 'Pause'}</span></button></div></div></section>
+        <section
+          className="testimonial-section-enhanced"
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Customer stories and testimonials"
+          onMouseEnter={() => setCarouselHovered(true)}
+          onMouseLeave={() => setCarouselHovered(false)}
+          onFocusCapture={() => setCarouselFocused(true)}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setCarouselFocused(false)
+          }}
+        >
+          <div className="testimonial-container">
+            {/* Section Heading */}
+            <div className="section-heading text-center">
+              <div className="eyebrow"><Sparkles size={13} /> CUSTOMER STORIES & EXPERIENCES</div>
+              <h2>Loved by teams scaling their sending.</h2>
+              <p>From high-velocity marketing campaigns to critical API notifications, see why fast-growing companies trust MetroMail.</p>
+            </div>
+
+            {/* Interactive Category Filter Pills */}
+            <div className="testimonial-category-tabs" role="tablist" aria-label="Filter stories by category">
+              {testimonialCategories.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedCategory === category}
+                  className={`category-pill ${selectedCategory === category ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedCategory(category)
+                    if (category !== 'All Stories') {
+                      const matchingIdx = testimonials.findIndex((t) => t.category === category)
+                      if (matchingIdx !== -1) setTestimonialIndex(matchingIdx)
+                    }
+                  }}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
+            {/* Main Interactive Showcase Grid */}
+            <div className="testimonial-interactive-layout">
+              {/* Left / Featured Spotlight Card */}
+              <div className="spotlight-card-wrapper">
+                <motion.div
+                  key={activeTestimonial.id}
+                  className="spotlight-card"
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 12, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.3, ease: 'easeOut' }}
+                >
+                  {/* Spotlight Top Bar */}
+                  <div className="spotlight-card-head">
+                    <div className="spotlight-rating-wrap">
+                      <div className="stars-row" aria-label="5 out of 5 stars">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} size={16} className="star-icon" />
+                        ))}
+                      </div>
+                      <span className="rating-score">5.0 / 5.0</span>
+                    </div>
+
+                    <div className="spotlight-badges">
+                      <span className="verified-badge">
+                        <CheckCircle2 size={13} /> Verified User
+                      </span>
+                      <span className="category-tag-badge">{activeTestimonial.highlightTag}</span>
+                    </div>
+                  </div>
+
+                  {/* Quote Body */}
+                  <div className="spotlight-quote-body">
+                    <Quote className="quote-watermark" size={48} aria-hidden="true" />
+                    <blockquote className="spotlight-quote">
+                      “{activeTestimonial.quote}”
+                    </blockquote>
+                  </div>
+
+                  {/* Impact Metric Banner */}
+                  <div className="spotlight-metric-banner">
+                    <div className="metric-icon-wrap">
+                      <TrendingUp size={20} />
+                    </div>
+                    <div className="metric-details">
+                      <span className="metric-number">{activeTestimonial.metric}</span>
+                      <span className="metric-label">{activeTestimonial.metricLabel}</span>
+                    </div>
+                    <div className="metric-company-pill">
+                      <Building2 size={13} /> {activeTestimonial.company}
+                    </div>
+                  </div>
+
+                  {/* Key Features Tags */}
+                  <div className="spotlight-tags-row">
+                    <span className="tags-label">Key features used:</span>
+                    <div className="tags-pills-wrap">
+                      {activeTestimonial.tags.map((tag) => (
+                        <span key={tag} className="feature-pill">{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Spotlight Footer */}
+                  <div className="spotlight-card-footer">
+                    <div className="spotlight-author-info">
+                      <div
+                        className="spotlight-avatar"
+                        style={{ background: activeTestimonial.avatarGradient }}
+                      >
+                        {activeTestimonial.initials}
+                      </div>
+                      <div>
+                        <h4 className="author-name">{activeTestimonial.name}</h4>
+                        <p className="author-role">{activeTestimonial.role} · {activeTestimonial.company}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`helpful-story-btn ${storyLikes[activeTestimonial.id]?.liked ? 'liked' : ''}`}
+                      onClick={() => {
+                        setStoryLikes((prev) => {
+                          const curr = prev[activeTestimonial.id] || { count: 0, liked: false }
+                          return {
+                            ...prev,
+                            [activeTestimonial.id]: {
+                              count: curr.liked ? curr.count - 1 : curr.count + 1,
+                              liked: !curr.liked,
+                            },
+                          }
+                        })
+                      }}
+                      title="Give appreciation to this customer story"
+                    >
+                      <ThumbsUp size={14} />
+                      <span>{storyLikes[activeTestimonial.id]?.liked ? 'Appreciated' : 'Helpful story'}</span>
+                      <span className="likes-counter">({storyLikes[activeTestimonial.id]?.count ?? 0})</span>
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Right / Interactive Stories List */}
+              <div className="story-selector-column">
+                <div className="story-selector-header">
+                  <span className="selector-title">Customer Stories</span>
+                  <span className="story-counter">Story {testimonialIndex + 1} of {testimonials.length}</span>
+                </div>
+
+                <div className="story-cards-list">
+                  {testimonials.map((item, idx) => {
+                    const isCurrent = testimonialIndex === idx
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`story-selector-card ${isCurrent ? 'is-active' : ''}`}
+                        onClick={() => {
+                          setTestimonialIndex(idx)
+                          if (selectedCategory !== 'All Stories' && item.category !== selectedCategory) {
+                            setSelectedCategory('All Stories')
+                          }
+                        }}
+                        aria-pressed={isCurrent}
+                      >
+                        <div className="selector-card-top">
+                          <div className="selector-avatar" style={{ background: item.avatarGradient }}>
+                            {item.initials}
+                          </div>
+                          <div className="selector-meta">
+                            <b>{item.name}</b>
+                            <small>{item.role} · {item.company}</small>
+                          </div>
+                          <span className="selector-metric-chip">{item.metric}</span>
+                        </div>
+                        <p className="selector-quote-preview">“{item.quote}”</p>
+                        <div className="selector-card-footer">
+                          <span className="selector-category">{item.category}</span>
+                          <span className="selector-arrow">
+                            {isCurrent ? <strong className="viewing-pill">Viewing</strong> : <span className="read-action">Read story <ArrowRight size={12} /></span>}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Carousel Controls Bar */}
+                <div className="testimonial-controls-bar">
+                  <div className="nav-buttons-group">
+                    <button
+                      type="button"
+                      className="ctrl-btn"
+                      aria-label="Previous story"
+                      onClick={() => setTestimonialIndex((index) => (index - 1 + testimonials.length) % testimonials.length)}
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <div className="step-dots-group">
+                      {testimonials.map((t, idx) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          className={`step-dot ${testimonialIndex === idx ? 'active' : ''}`}
+                          aria-label={`Jump to ${t.name}'s story`}
+                          onClick={() => setTestimonialIndex(idx)}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="ctrl-btn"
+                      aria-label="Next story"
+                      onClick={() => setTestimonialIndex((index) => (index + 1) % testimonials.length)}
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="ctrl-pause-btn"
+                    aria-label={carouselPaused ? 'Resume auto-rotation' : 'Pause auto-rotation'}
+                    onClick={() => setCarouselPaused(!carouselPaused)}
+                  >
+                    {carouselPaused ? <Play size={13} /> : <Pause size={13} />}
+                    <span>{carouselPaused ? 'Play' : 'Pause'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Trust & Reliability Ribbon */}
+            <div className="testimonial-trust-ribbon">
+              <div className="trust-stat-box">
+                <strong>99.98%</strong>
+                <span>Global Inbox Delivery</span>
+              </div>
+              <div className="trust-stat-divider" />
+              <div className="trust-stat-box">
+                <strong>120M+</strong>
+                <span>Emails Delivered Monthly</span>
+              </div>
+              <div className="trust-stat-divider" />
+              <div className="trust-stat-box">
+                <strong>4.9 / 5.0</strong>
+                <span>Customer CSAT Score</span>
+              </div>
+              <div className="trust-stat-divider" />
+              <div className="trust-stat-box">
+                <strong>&lt; 20ms</strong>
+                <span>Webhook Dispatch Speed</span>
+              </div>
+            </div>
+          </div>
+        </section>
         <section className="faq-section"><div className="faq-intro"><div className="eyebrow">GOOD QUESTIONS</div><h2>Curious? Start here.</h2><p>Still have questions? Our team can help you find the right setup.</p><Link href="/contact-us" className="text-link">Talk to us <ArrowRight size={15} /></Link></div><div className="faq-list">{faqs.map(([question, answer]) => <details key={question}><summary>{question}<ArrowDown size={16} /></summary><p>{answer}</p></details>)}</div></section>
         <section className="final-cta"><div className="cta-glow" /><div className="eyebrow">YOUR NEXT GREAT SEND STARTS HERE</div><h2>Make your next email<br />a little more meaningful.</h2><p>Bring campaigns and product email together in one workspace built around your team.</p><form className="cta-form" onSubmit={(event) => { event.preventDefault(); setSubmitted(true) }}><label className="sr-only" htmlFor="cta-email">Work email</label><input id="cta-email" type="email" placeholder="Enter your work email" value={email} onChange={(event) => setEmail(event.target.value)} required /><button className="button button-white" type="submit">{submitted ? 'You’re on the list' : 'Get started'} <ArrowRight size={15} /></button></form><small>No credit card required · Frontend demo only</small></section>
       </> : <section className="secondary-page"><div className="secondary-hero"><div className="secondary-copy"><div className="eyebrow">{info.eyebrow.toUpperCase()}</div><h1>{info.title}</h1><p>{info.description}</p><div className="hero-actions"><Link href="/signup" className="button button-primary button-large">Get started <ArrowRight size={15} /></Link><Link href="/app/overview" className="button button-secondary button-large">Open demo workspace <ArrowUpRight size={15} /></Link></div></div><div className="secondary-preview"><div className="secondary-preview-icon"><Mail size={26} /></div><h3>One place for every send.</h3><p>Campaigns, automation, API, SMTP, and delivery insights work better together.</p><div className="secondary-preview-stats"><span><b>99.2%</b><small>delivery rate</small></span><span><b>42.8%</b><small>open rate</small></span><span><b>24/7</b><small>visibility</small></span></div></div></div><div className="secondary-content"><div className="secondary-feature-grid">{info.bullets.map((bullet, index) => <article key={bullet}><span className="feature-icon"><Check size={18} /></span><h3>{bullet}</h3><p>Keep your team moving with a clear, connected workflow designed to make email easier to manage.</p><Link href={index === 0 ? '/app/campaigns' : index === 1 ? '/app/domains' : '/app/analytics'}>Explore in workspace <ArrowRight size={14} /></Link></article>)}</div><section className="secondary-how"><div className="eyebrow">HOW IT WORKS</div><h2>A clear path from setup to insight.</h2><div className="secondary-step-row">{steps.slice(0, 4).map(([number, title]) => <div key={number}><span>{number}</span><b>{title}</b></div>)}</div></section>{page === 'pricing' && <div className="secondary-pricing"><h2>Plans made for your next stage</h2><div className="pricing-grid">{['Starter · Free', 'Growth · $49 / month', 'Scale · Let’s talk'].map((plan) => <article className="price-card" key={plan}><small>METROMAIL</small><h3>{plan}</h3><p>Illustrative plan details for the frontend demo.</p><Link href="/signup" className="button button-primary full-button">Get started</Link></article>)}</div></div>}</div><div className="secondary-cta"><div><div className="eyebrow">READY WHEN YOU ARE</div><h2>Let’s make email work better.</h2></div><Link href="/signup" className="button button-primary">Create your workspace <ArrowRight size={15} /></Link></div></section>}
