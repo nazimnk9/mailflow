@@ -15,7 +15,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Code2,
+  Filter,
   Globe2,
+  Inbox,
   Layers3,
   Mail,
   Menu,
@@ -24,6 +26,7 @@ import {
   Quote,
   Send,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Star,
   ThumbsUp,
@@ -172,11 +175,167 @@ const pageInfo: Record<string, { eyebrow: string; title: string; description: st
   'terms-conditions': { eyebrow: 'Terms', title: 'Clear expectations for every workspace.', description: 'This sample terms page is a frontend scaffold. Replace it with your company’s reviewed terms before launch.', bullets: ['Account responsibilities', 'Acceptable use', 'Service availability'] },
 }
 
+const platformServices = [
+  {
+    id: 'campaigns',
+    category: 'marketing',
+    categoryLabel: 'Campaigns & Marketing',
+    badge: 'Visual & HTML Editor',
+    icon: Mail,
+    color: '#2563eb',
+    title: 'Email Marketing & Campaign Studio',
+    description: 'Craft high-converting newsletters and promotional campaigns with our drag-and-drop visual builder, rich HTML code editor, and pre-built responsive templates.',
+    features: [
+      'Visual drag-and-drop & plain-text composer',
+      'Live split-screen HTML & CSS code editor',
+      'Fullscreen workspace with responsive mobile views',
+      'Tested reusable marketing & transactional templates',
+    ],
+    metric: '✨ Visual + HTML + Plain-Text Suite',
+    link: '/email-templates',
+    ctaText: 'Explore Campaign Studio',
+  },
+  {
+    id: 'api-smtp',
+    category: 'developer',
+    categoryLabel: 'Developer Infrastructure',
+    badge: 'Transactional Engine',
+    icon: Code2,
+    color: '#0284c7',
+    title: 'Developer REST API & High-Speed SMTP',
+    description: 'Deliver transactional alerts, verification codes, and order notifications with sub-250ms latency using our global REST API or enterprise SMTP relay.',
+    features: [
+      'Developer REST API with POST /v1/messages',
+      'Global distributed SMTP relay with TLS 1.3 encryption',
+      'Real-time webhook events with HMAC-SHA256 signatures',
+      'Official SDKs for Node.js, Python, PHP, and cURL',
+    ],
+    metric: '🚀 <250ms API Latency & 99.99% Uptime',
+    link: '/email-api',
+    ctaText: 'View API & SMTP Docs',
+  },
+  {
+    id: 'automation',
+    category: 'marketing',
+    categoryLabel: 'Automation Engine',
+    badge: 'Customer Journeys',
+    icon: Workflow,
+    color: '#8b5cf6',
+    title: 'Visual Marketing Automation Journeys',
+    description: 'Build intelligent multi-step customer journeys on a visual flowchart canvas with event-driven triggers, conditional branches, and automated audience tagging.',
+    features: [
+      'Visual flowchart canvas with drag-and-drop steps',
+      'Behavioral triggers (Sign-up, Cart abandon, Link clicked)',
+      'Multi-branch If/Else condition logic (Yes/No pathways)',
+      'Dynamic audience segmentation and lifecycle tags',
+    ],
+    metric: '🤖 Multi-Branch Decision Flowcharts',
+    link: '/app/automations/create',
+    ctaText: 'Open Visual Canvas',
+  },
+  {
+    id: 'hygiene',
+    category: 'deliverability',
+    categoryLabel: 'Deliverability & Hygiene',
+    badge: 'List Hygiene',
+    icon: ShieldCheck,
+    color: '#059669',
+    title: 'Real-Time Email Verification & Hygiene',
+    description: 'Protect sender reputation by filtering out invalid emails, disposable addresses, syntax errors, and spam traps with real-time API checks and bulk CSV scrubbing.',
+    features: [
+      'Real-time single address verification with syntax & MX checks',
+      'Bulk CSV scrubber processing 10,000+ contacts/minute',
+      'Disposable temporary inbox & role account detection',
+      'Honeypot and spam trap elimination algorithms',
+    ],
+    metric: '🛡️ 99.8% Hygiene Accuracy Shield',
+    link: '/app/verify',
+    ctaText: 'Launch Verifier Tool',
+  },
+  {
+    id: 'placement',
+    category: 'deliverability',
+    categoryLabel: 'Deliverability & Hygiene',
+    badge: 'Inbox Placement',
+    icon: TrendingUp,
+    color: '#d97706',
+    title: 'InboxReady Placement Suite & DNSBL Monitor',
+    description: 'Ensure your emails land in the primary inbox instead of the spam folder with pre-send seed list testing, automated IP warmup, and 24/7 DNSBL blacklist monitoring.',
+    features: [
+      'Seed list testing across Gmail, Outlook, Yahoo, and iCloud',
+      'Continuous 50+ DNSBL blocklist monitor with auto-alerts',
+      'Automated dedicated IP warmup schedules',
+      'SPF, DKIM, DMARC, and BIMI authentication health check',
+    ],
+    metric: '📈 99.98% Primary Inbox Placement Target',
+    link: '/app/inbox-placement',
+    ctaText: 'Inspect Placement Suite',
+  },
+  {
+    id: 'sms-whatsapp',
+    category: 'omnichannel',
+    categoryLabel: 'Omnichannel & Mobile',
+    badge: 'Mobile Broadcast',
+    icon: Smartphone,
+    color: '#0891b2',
+    title: 'Multi-Channel SMS & WhatsApp Messaging',
+    description: 'Expand customer touchpoints beyond the inbox with high-open SMS broadcasts and verified WhatsApp Business messages directly from your campaign studio.',
+    features: [
+      'Unified SMS broadcast builder with live GSM character counter',
+      'Meta-approved WhatsApp Business template integration',
+      'Interactive smartphone frame for realistic mobile previews',
+      'Global carrier delivery network covering 190+ countries',
+    ],
+    metric: '📱 98% Open Rates within 3 Minutes',
+    link: '/app/campaigns/sms',
+    ctaText: 'Design Mobile Campaign',
+  },
+  {
+    id: 'crm',
+    category: 'omnichannel',
+    categoryLabel: 'Sales CRM & Deals',
+    badge: 'Sales Pipeline',
+    icon: Layers3,
+    color: '#db2777',
+    title: 'Sales CRM & Deals Pipeline (Kanban)',
+    description: 'Turn email engagement into closed revenue with our Kanban deals board. Track deal stages, forecast pipeline value, manage sales tasks, and review contact histories.',
+    features: [
+      '5-stage visual Kanban pipeline with total deal valuation',
+      'Drag-and-drop deal progression and stage win probability',
+      'Unified contact history showing every email, SMS, and form submit',
+      'Sales task assignment with due dates and priority flags',
+    ],
+    metric: '💼 Full Customer Lifecycle & Deal Tracking',
+    link: '/app/deals',
+    ctaText: 'View Deals Pipeline',
+  },
+  {
+    id: 'inbound',
+    category: 'developer',
+    categoryLabel: 'Developer Infrastructure',
+    badge: 'Inbound Routing',
+    icon: Inbox,
+    color: '#4f46e5',
+    title: 'Inbound Mail Routing & Webhook Parser',
+    description: 'Transform inbound emails into structured JSON payloads. Parse MIME structures, strip quoted signatures, extract attachments, and forward directly to your webhook endpoints.',
+    features: [
+      'Pattern matching rules (match_recipient, match_header, catch-all)',
+      'Clean signature stripping and structured JSON normalization',
+      'Attachment decoding and secure webhook delivery',
+      'Live interactive route sandbox with instant test dispatch',
+    ],
+    metric: '⚡ Automated MIME Parsing & Webhooks',
+    link: '/app/inbound-routes',
+    ctaText: 'Configure Inbound Routes',
+  },
+]
+
 export function MarketingSite({ page = 'home' }: { page?: string }) {
   const [menu, setMenu] = useState<'products' | 'resources' | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [serviceCategory, setServiceCategory] = useState<'all' | 'marketing' | 'developer' | 'deliverability' | 'omnichannel'>('all')
   const [testimonialIndex, setTestimonialIndex] = useState(0)
   const [selectedCategory, setSelectedCategory] = useState<string>('All Stories')
   const [storyLikes, setStoryLikes] = useState<Record<string, { count: number; liked: boolean }>>({
@@ -185,6 +344,10 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
     priya: { count: 79, liked: false },
     marcus: { count: 47, liked: false },
   })
+  const [playgroundLang, setPlaygroundLang] = useState<'Node.js' | 'Python' | 'cURL' | 'PHP'>('Node.js')
+  const [testSending, setTestSending] = useState(false)
+  const [testSent, setTestSent] = useState(false)
+  const [monthlyVolume, setMonthlyVolume] = useState(50000)
   const [carouselHovered, setCarouselHovered] = useState(false)
   const [carouselFocused, setCarouselFocused] = useState(false)
   const [carouselPaused, setCarouselPaused] = useState(false)
@@ -244,12 +407,327 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
         <section className="trust-section"><p>BUILT FOR THE TEAMS BUILDING WHAT’S NEXT</p><div className="trust-brands"><span>northstar<span className="trust-mark">/</span></span><span className="trust-serif">juniper</span><span className="trust-mono">mono<span>®</span></span><span className="trust-bold">COASTLINE</span><span className="trust-serif trust-italic">Acme Studio</span></div><small>Illustrative brand names for demonstration only</small></section>
         <section className="section-block features-overview"><div className="section-heading"><div className="eyebrow">THE COMPLETE EMAIL WORKSPACE</div><h2>Everything your email program needs.<br /><span>Nothing it doesn’t.</span></h2><p>From your first newsletter to millions of product notifications, keep the important parts connected.</p></div><div className="feature-card-grid">{featureCards.map(({ icon: Icon, title, text }, index) => <article className="feature-card" key={title}><span className={`feature-icon feature-icon-${index}`}><Icon size={19} /></span><h3>{title}</h3><p>{text}</p><Link href={['/email-marketing', '/automation', '/email-api', '/analytics'][index]}>Explore {['campaigns', 'automation', 'the API', 'analytics'][index]} <ArrowRight size={14} /></Link></article>)}</div></section>
         <section className="split-feature marketing-tint"><div className="split-copy"><div className="eyebrow">MARKETING THAT FEELS HUMAN</div><h2>Good email starts with knowing your audience.</h2><p>Bring contacts and customer data together. Build thoughtful segments, design campaigns that sound like you, and let automation take care of the follow-through.</p><ul><li><Check /> Flexible lists, tags, and segments</li><li><Check /> Reusable templates and campaign drafts</li><li><Check /> Clear performance reporting</li></ul><Link className="text-link" href="/email-marketing">Explore email marketing <ArrowRight size={15} /></Link></div><div className="audience-card"><div className="audience-card-head"><div><small>AUDIENCE OVERVIEW</small><h3>Your audience, in focus.</h3></div><span className="audience-icon"><Layers3 size={17} /></span></div><div className="audience-number"><strong>24,806</strong><span>active contacts</span><em>↑ 8.4%</em></div><div className="segment-list"><div><span className="segment-color segment-blue" /> Engaged customers <b>8,204</b></div><div><span className="segment-color segment-cyan" /> Product updates <b>6,890</b></div><div><span className="segment-color segment-violet" /> New subscribers <b>4,420</b></div><div><span className="segment-color segment-pale" /> Other contacts <b>5,292</b></div></div><div className="audience-foot"><span>Updated moments ago</span><span><ArrowUpRight size={13} /> View segments</span></div></div></section>
-        <section className="split-feature infra-feature"><div className="infra-visual"><div className="infra-card"><div className="infra-card-head"><span className="code-badge"><Code2 size={17} /></span><div><b>Message accepted</b><small>POST /v1/messages</small></div><span className="infra-accepted"><Check size={13} /> 202</span></div><div className="code-window"><div className="code-line"><i>1</i><span><b>await</b> metro.mail.send({'{'}</span></div><div className="code-line"><i>2</i><span>&nbsp; to: <em>&quot;customer@example.com&quot;</em>,</span></div><div className="code-line"><i>3</i><span>&nbsp; template: <em>&quot;order-confirmation&quot;</em>,</span></div><div className="code-line"><i>4</i><span>&nbsp; data: {'{'} orderId: <em>&quot;#9821&quot;</em> {'}'}</span></div><div className="code-line"><i>5</i><span>{'}'});</span></div></div><div className="infra-progress"><div><span>Accepted</span><b>10:42:08.124</b></div><i /><div><span>Delivered</span><b>10:42:08.318</b></div></div></div><div className="infra-orb" /></div><div className="split-copy"><div className="eyebrow">BUILT FOR DEVELOPERS</div><h2>Reliable infrastructure. Clear signals.</h2><p>Send product-critical email through a simple API or SMTP relay, then follow every message through searchable logs and meaningful events.</p><ul><li><Check /> REST API and flexible SMTP</li><li><Check /> Delivery events and webhooks</li><li><Check /> Authenticated domains and API keys</li></ul><Link className="text-link" href="/email-api">Explore developer tools <ArrowRight size={15} /></Link></div></section>
+        <section className="split-feature infra-feature">
+          <div className="infra-visual">
+            <div className="infra-card">
+              <div className="infra-card-head">
+                <div className="code-badge">
+                  <Code2 size={17} />
+                </div>
+                <div className="code-lang-tabs">
+                  {(['Node.js', 'Python', 'cURL', 'PHP'] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      className={`lang-tab ${playgroundLang === lang ? 'active' : ''}`}
+                      onClick={() => setPlaygroundLang(lang)}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="test-api-btn"
+                  onClick={() => {
+                    setTestSending(true)
+                    setTimeout(() => {
+                      setTestSending(false)
+                      setTestSent(true)
+                      setTimeout(() => setTestSent(false), 2500)
+                    }, 450)
+                  }}
+                  disabled={testSending}
+                >
+                  {testSending ? 'Sending...' : testSent ? '✓ 202 Accepted' : 'Run API Send'}
+                </button>
+              </div>
+
+              <div className="code-window">
+                {playgroundLang === 'Node.js' && (
+                  <>
+                    <div className="code-line"><i>1</i><span><b>import</b> MetroMail <b>from</b> <em>&quot;metromail&quot;</em>;</span></div>
+                    <div className="code-line"><i>2</i><span><b>const</b> client = <b>new</b> MetroMail(process.env.API_KEY);</span></div>
+                    <div className="code-line"><i>3</i><span><b>await</b> client.messages.send({'{'}</span></div>
+                    <div className="code-line"><i>4</i><span>&nbsp; from: <em>&quot;hello@updates.metrovps.com&quot;</em>,</span></div>
+                    <div className="code-line"><i>5</i><span>&nbsp; to: <em>&quot;customer@example.com&quot;</em>,</span></div>
+                    <div className="code-line"><i>6</i><span>&nbsp; template: <em>&quot;order-shipped&quot;</em>,</span></div>
+                    <div className="code-line"><i>7</i><span>&nbsp; data: {'{'} orderId: <em>&quot;#9821&quot;</em> {'}'}</span></div>
+                    <div className="code-line"><i>8</i><span>{'}'});</span></div>
+                  </>
+                )}
+                {playgroundLang === 'Python' && (
+                  <>
+                    <div className="code-line"><i>1</i><span><b>from</b> metromail <b>import</b> Client</span></div>
+                    <div className="code-line"><i>2</i><span>client = Client(api_key=os.environ[<em>&quot;API_KEY&quot;</em>])</span></div>
+                    <div className="code-line"><i>3</i><span>client.messages.send(</span></div>
+                    <div className="code-line"><i>4</i><span>&nbsp; from_=<em>&quot;hello@updates.metrovps.com&quot;</em>,</span></div>
+                    <div className="code-line"><i>5</i><span>&nbsp; to=<em>&quot;customer@example.com&quot;</em>,</span></div>
+                    <div className="code-line"><i>6</i><span>&nbsp; template=<em>&quot;order-shipped&quot;</em></span></div>
+                    <div className="code-line"><i>7</i><span>)</span></div>
+                  </>
+                )}
+                {playgroundLang === 'cURL' && (
+                  <>
+                    <div className="code-line"><i>1</i><span>curl -X POST https://api.metromail.email/v1/messages \</span></div>
+                    <div className="code-line"><i>2</i><span>&nbsp; -H <em>&quot;Authorization: Bearer $API_KEY&quot;</em> \</span></div>
+                    <div className="code-line"><i>3</i><span>&nbsp; -H <em>&quot;Content-Type: application/json&quot;</em> \</span></div>
+                    <div className="code-line"><i>4</i><span>&nbsp; -d <em>&apos;{`{"to":"customer@example.com","template":"order"}`}&apos;</em></span></div>
+                  </>
+                )}
+                {playgroundLang === 'PHP' && (
+                  <>
+                    <div className="code-line"><i>1</i><span>$client = <b>new</b> MetroMailClient(getenv(<em>&quot;API_KEY&quot;</em>));</span></div>
+                    <div className="code-line"><i>2</i><span>$client-&gt;messages()-&gt;send([</span></div>
+                    <div className="code-line"><i>3</i><span>&nbsp; <em>&quot;to&quot;</em> =&gt; <em>&quot;customer@example.com&quot;</em>,</span></div>
+                    <div className="code-line"><i>4</i><span>&nbsp; <em>&quot;template&quot;</em> =&gt; <em>&quot;order-shipped&quot;</em></span></div>
+                    <div className="code-line"><i>5</i><span>]);</span></div>
+                  </>
+                )}
+              </div>
+
+              <div className="infra-progress">
+                <div><span>Status: <b>{testSent ? '202 Accepted' : 'Ready'}</b></span><small>POST /v1/messages</small></div>
+                <i />
+                <div><span>Latency: <b>14ms</b></span><small>Edge dispatch</small></div>
+              </div>
+            </div>
+            <div className="infra-orb" />
+          </div>
+          <div className="split-copy">
+            <div className="eyebrow">BUILT FOR DEVELOPERS</div>
+            <h2>Reliable infrastructure. Clear signals.</h2>
+            <p>Send product-critical email through a simple API or SMTP relay, then follow every message through searchable logs and meaningful events.</p>
+            <ul>
+              <li><Check /> REST API and flexible SMTP</li>
+              <li><Check /> Delivery events and webhooks</li>
+              <li><Check /> Authenticated domains and API keys</li>
+            </ul>
+            <Link className="text-link" href="/email-api">Explore developer tools <ArrowRight size={15} /></Link>
+          </div>
+        </section>
         <section className="automation-section"><div className="section-heading"><div className="eyebrow">A BETTER CUSTOMER JOURNEY</div><h2>From first hello to lifelong customer.</h2><p>Give every customer the right message at the right moment, without adding more busywork.</p></div><div className="journey-flow"><div className="journey-node journey-trigger"><span><Zap size={17} /></span><small>TRIGGER</small><b>New subscriber</b></div><div className="journey-connector"><i /></div><div className="journey-node"><span><Mail size={17} /></span><small>INSTANTLY</small><b>Welcome email</b></div><div className="journey-connector"><i /></div><div className="journey-node"><span className="journey-delay"><ArrowDown size={17} /></span><small>AFTER 2 DAYS</small><b>Share a guide</b></div><div className="journey-connector"><i /></div><div className="journey-node journey-outcome"><span><BarChart3 size={17} /></span><small>IF ENGAGED</small><b>Invite to explore</b></div></div><Link className="text-link journey-link" href="/automation">Explore email automation <ArrowRight size={15} /></Link></section>
         <section className="how-section"><div className="section-heading"><div className="eyebrow">GET STARTED IN A FEW STEPS</div><h2>From setup to a smarter send.</h2><p>Everything you need to go from a new account to useful, measurable email.</p></div><div className="steps-grid">{steps.map(([number, title, description], index) => <article className="step-card" key={number}><span className="step-number">{number}</span><div className="step-line"><i className={index < steps.length - 1 ? 'line-active' : ''} /></div><h3>{title}</h3><p>{description}</p></article>)}</div><div className="steps-cta"><Link href="/signup" className="button button-primary">Set up your workspace <ArrowRight size={15} /></Link><Link href="/documentation" className="text-link">Read the getting started guide</Link></div></section>
         <section className="usecases-section"><div className="usecase-head"><div><div className="eyebrow">A PLATFORM THAT FITS YOUR TEAM</div><h2>Made for the messages that matter.</h2></div><Link href="/features" className="text-link">See all features <ArrowRight size={15} /></Link></div><div className="usecase-grid"><article><span className="usecase-icon"><Sparkles /></span><h3>Growing startups</h3><p>Move quickly with a simple platform that grows with your product.</p></article><article><span className="usecase-icon"><Globe2 /></span><h3>SaaS products</h3><p>Send reliable account, billing, and lifecycle messages as you scale.</p></article><article><span className="usecase-icon"><Layers3 /></span><h3>Commerce teams</h3><p>Connect campaigns, order notifications, and customer data.</p></article><article><span className="usecase-icon"><Code2 /></span><h3>Developers</h3><p>Integrate sending with a clean API and observability built in.</p></article></div></section>
         <section className="integration-strip"><div><div className="eyebrow">FITS YOUR EXISTING STACK</div><h2>Works with the tools you already use.</h2><p>Explore CRM, commerce, automation, and developer integrations.</p></div><div className="integration-icons"><span>H</span><span>S</span><span>z</span><span>∑</span><span>+</span></div><Link href="/integrations" className="button button-secondary">Explore integrations <ArrowRight size={14} /></Link></section>
-        <section className="pricing-section"><div className="section-heading"><div className="eyebrow">SIMPLE, FLEXIBLE PRICING</div><h2>Start free. Grow at your own pace.</h2><p>Pick a plan that supports your next stage, not just where you are today.</p></div><div className="pricing-grid"><article className="price-card"><small>STARTER</small><h3>For getting going</h3><p>Try the essentials and find your rhythm.</p><div className="price-value"><b>Free</b><span>forever</span></div><ul><li><Check /> 300 emails per day</li><li><Check /> Basic campaign tools</li><li><Check /> Email API and SMTP</li></ul><Link href="/signup" className="button button-secondary full-button">Start free</Link></article><article className="price-card price-featured"><div className="popular-label">MOST POPULAR</div><small>GROWTH</small><h3>For teams in motion</h3><p>More reach, automation, and helpful insights.</p><div className="price-value"><b>$49</b><span>/ month</span></div><ul><li><Check /> 50,000 emails per month</li><li><Check /> Marketing automation</li><li><Check /> Advanced analytics</li></ul><Link href="/signup" className="button button-primary full-button">Choose Growth</Link></article><article className="price-card"><small>SCALE</small><h3>For more ambitious sends</h3><p>Additional control for growing programs.</p><div className="price-value"><b>Let’s talk</b></div><ul><li><Check /> Custom volume and limits</li><li><Check /> Priority support options</li><li><Check /> Advanced team controls</li></ul><Link href="/contact-us" className="button button-secondary full-button">Talk to our team</Link></article></div><p className="pricing-note">Illustrative pricing for this frontend demo. Plans and limits are not active billing offers.</p></section>
+        <section className="pricing-section">
+          <div className="section-heading">
+            <div className="eyebrow">SIMPLE, PREDICTABLE PRICING</div>
+            <h2>Calculate pricing for your sending volume.</h2>
+            <p>Slide to estimate monthly cost based on how many emails you send.</p>
+          </div>
+
+          {/* Interactive Volume Slider */}
+          <div className="pricing-calculator-card">
+            <div className="calc-top-row">
+              <div>
+                <small className="calc-label">MONTHLY SENDING VOLUME</small>
+                <div className="calc-volume-display">
+                  <b>{monthlyVolume.toLocaleString()}</b>
+                  <span>emails / month</span>
+                </div>
+              </div>
+              <div className="calc-price-display">
+                <small className="calc-label">ESTIMATED PRICE</small>
+                <div className="calc-price-number">
+                  <b>${monthlyVolume <= 10000 ? '0' : monthlyVolume <= 50000 ? '49' : monthlyVolume <= 100000 ? '89' : monthlyVolume <= 250000 ? '199' : monthlyVolume <= 500000 ? '349' : '649'}</b>
+                  <span>/ month</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="calc-slider-wrap">
+              <input
+                type="range"
+                min="5000"
+                max="1000000"
+                step="5000"
+                value={monthlyVolume}
+                onChange={(e) => setMonthlyVolume(parseInt(e.target.value))}
+                className="volume-range-input"
+              />
+              <div className="slider-ticks-row">
+                <span>10k (Free)</span>
+                <span>50k ($49)</span>
+                <span>100k ($89)</span>
+                <span>250k ($199)</span>
+                <span>500k ($349)</span>
+                <span>1M+ (Scale)</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="pricing-grid">
+            <article className={`price-card ${monthlyVolume <= 10000 ? 'price-featured' : ''}`}>
+              <small>STARTER</small>
+              <h3>For getting going</h3>
+              <p>Try the essentials and find your rhythm.</p>
+              <div className="price-value"><b>Free</b><span>forever</span></div>
+              <ul>
+                <li><Check /> Up to 10,000 emails / mo</li>
+                <li><Check /> Visual & HTML campaign editors</li>
+                <li><Check /> REST API, Webhooks & SMTP</li>
+              </ul>
+              <Link href="/signup" className="button button-secondary full-button">Start free</Link>
+            </article>
+
+            <article className={`price-card ${monthlyVolume > 10000 && monthlyVolume <= 100000 ? 'price-featured' : ''}`}>
+              <div className="popular-label">RECOMMENDED</div>
+              <small>GROWTH</small>
+              <h3>For teams in motion</h3>
+              <p>Higher volume, visual automations, and CRM deals.</p>
+              <div className="price-value"><b>${monthlyVolume <= 50000 ? '49' : '89'}</b><span>/ month</span></div>
+              <ul>
+                <li><Check /> Up to {monthlyVolume <= 50000 ? '50,000' : '100,000'} emails / mo</li>
+                <li><Check /> Visual Automation Flowcharts</li>
+                <li><Check /> Multi-channel SMS & WhatsApp</li>
+                <li><Check /> Email Validation & Hygiene</li>
+              </ul>
+              <Link href="/signup" className="button button-primary full-button">Choose Growth</Link>
+            </article>
+
+            <article className={`price-card ${monthlyVolume > 100000 ? 'price-featured' : ''}`}>
+              <small>ENTERPRISE SCALE</small>
+              <h3>For high-volume sending</h3>
+              <p>Dedicated deliverability suite and SLA guarantee.</p>
+              <div className="price-value"><b>${monthlyVolume <= 250000 ? '199' : monthlyVolume <= 500000 ? '349' : '649'}</b><span>/ month</span></div>
+              <ul>
+                <li><Check /> {monthlyVolume.toLocaleString()}+ emails / mo</li>
+                <li><Check /> Dedicated IP & Automated Warmup</li>
+                <li><Check /> Seed List Inbox Placement Suite</li>
+                <li><Check /> 24/7 Priority deliverability engineer</li>
+              </ul>
+              <Link href="/contact-us" className="button button-secondary full-button">Talk to our team</Link>
+            </article>
+          </div>
+          <p className="pricing-note">Illustrative volume calculator for this frontend demo. Plans and limits are not active billing offers.</p>
+        </section>
+
+        {/* Platform Services & Capabilities Showcase */}
+        <section className="section-block services-showcase-section" id="platform-services">
+          <div className="section-heading text-center">
+            <div className="eyebrow"><Sparkles size={13} /> OUR SERVICES & CAPABILITIES</div>
+            <h2>Everything you need to send, automate, and scale.</h2>
+            <p>From visual campaign design and developer APIs to real-time verification, omnichannel SMS, and deliverability tools — explore our complete platform services.</p>
+          </div>
+
+          {/* Interactive Category Filter Pills */}
+          <div className="services-filter-bar">
+            <button
+              type="button"
+              className={`service-filter-pill ${serviceCategory === 'all' ? 'active' : ''}`}
+              onClick={() => setServiceCategory('all')}
+            >
+              All Services <span className="pill-count">{platformServices.length}</span>
+            </button>
+            <button
+              type="button"
+              className={`service-filter-pill ${serviceCategory === 'marketing' ? 'active' : ''}`}
+              onClick={() => setServiceCategory('marketing')}
+            >
+              Campaigns & Marketing <span className="pill-count">2</span>
+            </button>
+            <button
+              type="button"
+              className={`service-filter-pill ${serviceCategory === 'developer' ? 'active' : ''}`}
+              onClick={() => setServiceCategory('developer')}
+            >
+              Developer Infrastructure <span className="pill-count">2</span>
+            </button>
+            <button
+              type="button"
+              className={`service-filter-pill ${serviceCategory === 'deliverability' ? 'active' : ''}`}
+              onClick={() => setServiceCategory('deliverability')}
+            >
+              Deliverability & Hygiene <span className="pill-count">2</span>
+            </button>
+            <button
+              type="button"
+              className={`service-filter-pill ${serviceCategory === 'omnichannel' ? 'active' : ''}`}
+              onClick={() => setServiceCategory('omnichannel')}
+            >
+              Omnichannel & CRM <span className="pill-count">2</span>
+            </button>
+          </div>
+
+          {/* Services Cards Grid */}
+          <div className="services-cards-grid">
+            {platformServices
+              .filter((item) => serviceCategory === 'all' || item.category === serviceCategory)
+              .map((service) => {
+                const IconComponent = service.icon
+                return (
+                  <article key={service.id} className="service-showcase-card">
+                    <div className="service-card-header">
+                      <div className="service-icon-wrapper" style={{ backgroundColor: `${service.color}15`, color: service.color }}>
+                        <IconComponent size={24} />
+                      </div>
+                      <div className="service-badges">
+                        <span className="service-badge-category">{service.categoryLabel}</span>
+                        <span className="service-badge-sub">{service.badge}</span>
+                      </div>
+                    </div>
+
+                    <div className="service-card-body">
+                      <h3 className="service-card-title">{service.title}</h3>
+                      <p className="service-card-desc">{service.description}</p>
+
+                      <div className="service-features-list">
+                        {service.features.map((feat, idx) => (
+                          <div key={idx} className="service-feature-item">
+                            <CheckCircle2 size={16} className="feature-check-icon" style={{ color: service.color }} />
+                            <span>{feat}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="service-card-footer">
+                      <div className="service-metric-chip">
+                        <span>{service.metric}</span>
+                      </div>
+                      <Link href={service.link} className="service-action-link">
+                        <span>{service.ctaText}</span>
+                        <ArrowRight size={14} />
+                      </Link>
+                    </div>
+                  </article>
+                )
+              })}
+          </div>
+
+          {/* Enterprise Trust & Infrastructure Ribbon */}
+          <div className="services-infrastructure-ribbon">
+            <div className="ribbon-item">
+              <div className="ribbon-icon">⚡</div>
+              <div>
+                <strong>99.99% Uptime SLA</strong>
+                <p>Enterprise sending reliability</p>
+              </div>
+            </div>
+            <div className="ribbon-item">
+              <div className="ribbon-icon">🛡️</div>
+              <div>
+                <strong>Automated IP Warmup</strong>
+                <p>Safeguards sender reputation</p>
+              </div>
+            </div>
+            <div className="ribbon-item">
+              <div className="ribbon-icon">🔒</div>
+              <div>
+                <strong>GDPR & ISO Compliant</strong>
+                <p>Zero data leakage guarantee</p>
+              </div>
+            </div>
+            <div className="ribbon-item">
+              <div className="ribbon-icon">🎧</div>
+              <div>
+                <strong>24/7 Deliverability Postmasters</strong>
+                <p>Dedicated engineer support</p>
+              </div>
+            </div>
+          </div>
+        </section>
         <section
           className="testimonial-section-enhanced"
           role="region"

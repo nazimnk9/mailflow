@@ -5,14 +5,36 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Activity, Bell, Blocks, Braces, ChartNoAxesCombined, ChevronDown, CircleHelp, ContactRound, CreditCard, Globe2, LayoutDashboard, LifeBuoy, ListFilter, LogOut, MailCheck, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, Send, Settings2, ShieldBan, Sparkles, UserCircle2, Workflow, X } from 'lucide-react'
+import { Activity, Bell, Blocks, Braces, ChartNoAxesCombined, CheckCheck, ChevronDown, CircleHelp, ContactRound, CreditCard, Globe2, Inbox, Kanban, LayoutDashboard, LifeBuoy, ListFilter, LogOut, MailCheck, Menu, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Route, Search, Send, Settings2, ShieldBan, Sliders, Smartphone, Sparkles, UserCircle2, Workflow, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/brand-mark'
 import { dashboardNav, type MockRow } from '@/lib/mock-data'
 import { createContact, issueApiKey, verifySendingDomain } from '@/lib/services'
 import { DashboardContent } from '@/components/dashboard-content'
 
-const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = { LayoutDashboard, Send, ContactRound, Workflow, MailCheck, Globe2, Braces, ListFilter, ShieldBan, ChartNoAxesCombined, Blocks, CreditCard, Settings2, CircleHelp }
+const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
+  LayoutDashboard,
+  Send,
+  ContactRound,
+  Workflow,
+  MailCheck,
+  Globe2,
+  Braces,
+  ListFilter,
+  ShieldBan,
+  ChartNoAxesCombined,
+  Blocks,
+  CreditCard,
+  Settings2,
+  CircleHelp,
+  Kanban,
+  CheckCheck,
+  Inbox,
+  Smartphone,
+  MessageSquare,
+  Route,
+  Sliders,
+}
 const actionSchema = z.object({ name: z.string().optional(), email: z.string().optional(), domain: z.string().optional(), message: z.string().optional() })
 type ActionValues = z.infer<typeof actionSchema>
 type DialogAction = 'contact' | 'key' | 'domain' | 'list' | 'form' | 'attribute' | 'ticket' | null

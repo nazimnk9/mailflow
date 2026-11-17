@@ -14,12 +14,18 @@ export const dashboardNav: NavGroup[] = [
   { label: 'Workspace', items: [
     { label: 'Overview', href: '/app/overview', icon: 'LayoutDashboard' },
     { label: 'Campaigns', href: '/app/campaigns', icon: 'Send' },
+    { label: 'SMS & WhatsApp', href: '/app/campaigns/sms', icon: 'Smartphone' },
     { label: 'Contacts & CRM', href: '/app/contacts', icon: 'ContactRound' },
+    { label: 'Sales Deals', href: '/app/deals', icon: 'Kanban' },
     { label: 'Automations', href: '/app/automations', icon: 'Workflow' },
+    { label: 'Form Builder', href: '/app/forms', icon: 'Sliders' },
   ] },
   { label: 'Deliverability', items: [
     { label: 'Transactional email', href: '/app/transactional', icon: 'MailCheck' },
     { label: 'Sending domains', href: '/app/domains', icon: 'Globe2' },
+    { label: 'Email Validator', href: '/app/verify', icon: 'CheckCheck' },
+    { label: 'Inbox Placement', href: '/app/inbox-placement', icon: 'Inbox' },
+    { label: 'Inbound Routes', href: '/app/inbound-routes', icon: 'Route' },
     { label: 'SMTP & API', href: '/app/api-keys', icon: 'Braces' },
     { label: 'Email logs', href: '/app/logs', icon: 'ListFilter' },
     { label: 'Suppressions', href: '/app/suppressions', icon: 'ShieldBan' },
