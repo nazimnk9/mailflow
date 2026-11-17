@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
@@ -351,8 +351,37 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
   const [carouselHovered, setCarouselHovered] = useState(false)
   const [carouselFocused, setCarouselFocused] = useState(false)
   const [carouselPaused, setCarouselPaused] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
+  const menuTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const prefersReducedMotion = useReducedMotion()
   const activeTestimonial = testimonials[testimonialIndex] || testimonials[0]
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 8)
+    }
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  const handleMenuEnter = (item: 'products' | 'resources') => {
+    if (menuTimeoutRef.current) {
+      clearTimeout(menuTimeoutRef.current)
+      menuTimeoutRef.current = null
+    }
+    setMenu(item)
+  }
+
+  const handleMenuLeave = () => {
+    if (menuTimeoutRef.current) {
+      clearTimeout(menuTimeoutRef.current)
+    }
+    menuTimeoutRef.current = setTimeout(() => {
+      setMenu(null)
+    }, 180)
+  }
+
   useEffect(() => {
     if (prefersReducedMotion || carouselPaused || carouselHovered || carouselFocused) return
     const interval = window.setInterval(() => setTestimonialIndex((index) => (index + 1) % testimonials.length), 6500)
@@ -363,24 +392,121 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
 
   return (
     <main className="marketing-shell">
-      <header className="marketing-header">
+      <header className={`marketing-header ${isScrolled ? 'is-scrolled' : ''}`}>
         <div className="marketing-nav-wrap">
           <BrandMark productLabel="Email Cloud" />
           <nav className="marketing-nav" aria-label="Main navigation">
-            <div className="nav-dropdown-wrap">
-              <button className={`nav-link ${menu === 'products' ? 'is-open' : ''}`} onClick={() => setMenu(menu === 'products' ? null : 'products')} aria-expanded={menu === 'products'}>Products <ChevronDown size={14} /></button>
-              {menu === 'products' && <div className="nav-dropdown product-dropdown">{products.map(([title, href, description]) => <Link key={href} href={href} onClick={() => setMenu(null)}><span>{title}</span><small>{description}</small></Link>)}</div>}
+            <div
+              className="nav-dropdown-wrap"
+              onMouseEnter={() => handleMenuEnter('products')}
+              onMouseLeave={handleMenuLeave}
+            >
+              <button
+                type="button"
+                className={`nav-link ${menu === 'products' ? 'is-open' : ''}`}
+                onClick={() => setMenu(menu === 'products' ? null : 'products')}
+                aria-expanded={menu === 'products'}
+              >
+                Products{' '}
+                <ChevronDown
+                  size={14}
+                  style={{
+                    transition: 'transform 0.2s ease',
+                    transform: menu === 'products' ? 'rotate(180deg)' : 'none',
+                  }}
+                />
+              </button>
+              {menu === 'products' && (
+                <div
+                  className="nav-dropdown product-dropdown"
+                  onMouseEnter={() => handleMenuEnter('products')}
+                  onMouseLeave={handleMenuLeave}
+                >
+                  {products.map(([title, href, description]) => (
+                    <Link key={href} href={href} onClick={() => setMenu(null)}>
+                      <span>{title}</span>
+                      <small>{description}</small>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
-            <Link className="nav-link" href="/pricing">Pricing</Link>
-            <div className="nav-dropdown-wrap">
-              <button className={`nav-link ${menu === 'resources' ? 'is-open' : ''}`} onClick={() => setMenu(menu === 'resources' ? null : 'resources')} aria-expanded={menu === 'resources'}>Resources <ChevronDown size={14} /></button>
-              {menu === 'resources' && <div className="nav-dropdown">{resources.map(([title, href]) => <Link key={href} href={href} onClick={() => setMenu(null)}>{title}<ArrowUpRight size={14} /></Link>)}</div>}
+
+            <Link className="nav-link" href="/pricing">
+              Pricing
+            </Link>
+
+            <div
+              className="nav-dropdown-wrap"
+              onMouseEnter={() => handleMenuEnter('resources')}
+              onMouseLeave={handleMenuLeave}
+            >
+              <button
+                type="button"
+                className={`nav-link ${menu === 'resources' ? 'is-open' : ''}`}
+                onClick={() => setMenu(menu === 'resources' ? null : 'resources')}
+                aria-expanded={menu === 'resources'}
+              >
+                Resources{' '}
+                <ChevronDown
+                  size={14}
+                  style={{
+                    transition: 'transform 0.2s ease',
+                    transform: menu === 'resources' ? 'rotate(180deg)' : 'none',
+                  }}
+                />
+              </button>
+              {menu === 'resources' && (
+                <div
+                  className="nav-dropdown"
+                  onMouseEnter={() => handleMenuEnter('resources')}
+                  onMouseLeave={handleMenuLeave}
+                >
+                  {resources.map(([title, href]) => (
+                    <Link key={href} href={href} onClick={() => setMenu(null)}>
+                      {title}
+                      <ArrowUpRight size={14} />
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </nav>
-          <div className="marketing-actions"><Link className="nav-login" href="/login">Log in</Link><Link className="button button-primary" href="/signup">Get started <ArrowRight size={15} /></Link></div>
-          <button className="icon-button mobile-nav-trigger" aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X /> : <Menu />}</button>
+          <div className="marketing-actions">
+            <Link className="nav-login" href="/login">
+              Log in
+            </Link>
+            <Link className="button button-primary" href="/signup">
+              Get started <ArrowRight size={15} />
+            </Link>
+          </div>
+          <button
+            className="icon-button mobile-nav-trigger"
+            aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            {mobileOpen ? <X /> : <Menu />}
+          </button>
         </div>
-        {mobileOpen && <div className="mobile-nav-panel"><Link href="/features" onClick={() => setMobileOpen(false)}>Products</Link><Link href="/pricing" onClick={() => setMobileOpen(false)}>Pricing</Link><Link href="/documentation" onClick={() => setMobileOpen(false)}>Resources</Link><Link href="/login" onClick={() => setMobileOpen(false)}>Log in</Link><Link className="button button-primary" href="/signup" onClick={() => setMobileOpen(false)}>Get started <ArrowRight size={15} /></Link></div>}
+        {mobileOpen && (
+          <div className="mobile-nav-panel">
+            <Link href="/features" onClick={() => setMobileOpen(false)}>
+              Products
+            </Link>
+            <Link href="/pricing" onClick={() => setMobileOpen(false)}>
+              Pricing
+            </Link>
+            <Link href="/documentation" onClick={() => setMobileOpen(false)}>
+              Resources
+            </Link>
+            <Link href="/login" onClick={() => setMobileOpen(false)}>
+              Log in
+            </Link>
+            <Link className="button button-primary" href="/signup" onClick={() => setMobileOpen(false)}>
+              Get started <ArrowRight size={15} />
+            </Link>
+          </div>
+        )}
       </header>
 
       {isHome ? <>
