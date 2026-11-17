@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { AuthScreen } from '@/components/auth-screen'
 import { DashboardApp } from '@/components/dashboard-app'
 import { MarketingSite } from '@/components/marketing-site'
@@ -10,6 +11,9 @@ const authPages = new Set(['login', 'signup', 'forgot-password', 'reset-password
 const pageTitles: Record<string, string> = {
   features: 'Features', 'email-marketing': 'Email Marketing', 'transactional-email': 'Transactional Email', 'email-api': 'Email API', 'smtp-service': 'SMTP Service', automation: 'Email Automation', campaigns: 'Email Campaigns', analytics: 'Email Analytics', 'email-deliverability': 'Email Deliverability', 'email-templates': 'Email Templates', integrations: 'Integrations', pricing: 'Pricing', documentation: 'Documentation', 'about-us': 'About MetroVPS', 'contact-us': 'Contact MetroVPS', faq: 'Frequently Asked Questions', 'privacy-policy': 'Privacy Policy', 'terms-conditions': 'Terms & Conditions', login: 'Log in', signup: 'Create your account', 'forgot-password': 'Reset your password', 'reset-password': 'Choose a new password', 'verify-email': 'Verify your email', 'two-factor': 'Two-factor authentication', invite: 'Accept invitation',
 }
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export async function generateMetadata({ params }: { params: Promise<{ segments: string[] }> }): Promise<Metadata> {
   const { segments } = await params
@@ -24,8 +28,28 @@ export async function generateMetadata({ params }: { params: Promise<{ segments:
 export default async function Page({ params }: { params: Promise<{ segments: string[] }> }) {
   const { segments } = await params
   const [root, ...rest] = segments
-  if (authPages.has(root) && rest.length === 0) return <AuthScreen page={root} />
-  if (root === 'app' || root === 'dashboard') return <DashboardApp route={rest.join('/') || 'overview'} />
+
+  const cookieStore = await cookies()
+  const isAuthenticated =
+    cookieStore.has('metromail_access_token') ||
+    cookieStore.get('metromail_session')?.value === 'authenticated'
+
+  // If already logged in, redirect /login and /signup to dashboard
+  if (authPages.has(root) && rest.length === 0) {
+    if (isAuthenticated && (root === 'login' || root === 'signup')) {
+      redirect('/app/overview')
+    }
+    return <AuthScreen page={root} />
+  }
+
+  // If not logged in, protect customer panel routes (/app/*, /dashboard/*) and redirect to /login
+  if (root === 'app' || root === 'dashboard') {
+    if (!isAuthenticated) {
+      redirect('/login')
+    }
+    return <DashboardApp route={rest.join('/') || 'overview'} />
+  }
+
   if (publicPages.has(root) && rest.length === 0) return <>
     <MarketingStructuredData />
     <MarketingSite page={root} />
