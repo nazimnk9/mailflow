@@ -214,9 +214,193 @@ function SegmentBuilder({ onAction }: { onAction: (message: string) => void }) {
 function TransactionalPage({ onAction }: { onAction: (message: string) => void }) {
   const [recipient, setRecipient] = useState('')
   const [subject, setSubject] = useState('Your order is on its way')
+  const [fromAddress, setFromAddress] = useState('MetroVPS <hello@mail.metrovps.com>')
   const [sent, setSent] = useState(false)
-  const submit = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); setSent(true); onAction(`Demo transactional message queued for ${recipient}.`) }
-  return <><div className="page-heading-row"><div><div className="page-eyebrow">DELIVERABILITY <span>/</span> TRANSACTIONAL EMAIL</div><h1>Transactional email</h1><p>Send and monitor the product messages your customers rely on.</p></div><Link href="/app/transactional/logs" className="button button-secondary">View message logs <ArrowRight size={14} /></Link></div><section className="transactional-metrics">{[['Delivered this month', '182,408', '+8.6%'], ['Delivery rate', '99.98%', '+0.3%'], ['Median latency', '48 ms', '−6 ms'], ['Failed messages', '84', '−12.4%']].map(([label, value, change]) => <article key={label}><small>{label}</small><b>{value}</b><span><ArrowUpRight size={12} /> {change}</span></article>)}</section><div className="transactional-workspace"><section className="transactional-send-card"><div className="panel-heading"><div><h2>Send a test message</h2><p>Preview your transactional setup with a local demo send.</p></div><span className="transactional-test-badge">TEST MODE</span></div>{sent && <div className="transactional-success"><Check size={14} /> Message queued in the local demo. No email was sent.</div>}<form onSubmit={submit} className="transactional-form"><label>From<select defaultValue="MetroVPS <hello@mail.metrovps.com>"><option>MetroVPS &lt;hello@mail.metrovps.com&gt;</option><option>Notifications &lt;notify@mail.metrovps.com&gt;</option></select></label><label>To address<input type="email" required value={recipient} onChange={(event) => { setRecipient(event.target.value); setSent(false) }} placeholder="customer@example.com" /></label><label>Subject<input required value={subject} onChange={(event) => setSubject(event.target.value)} /></label><label>Message<textarea defaultValue={'Hi there,\n\nYour order is on its way. You can follow its progress from your account.\n\n— The MetroVPS team'} /></label><div className="transactional-form-footer"><span><ShieldCheck size={13} /> Test messages are local-only</span><button className="button button-primary" type="submit"><Send size={14} /> Send test message</button></div></form></section><aside className="transactional-aside"><span className="transactional-aside-icon"><Braces size={17} /></span><h3>Built for your application.</h3><p>Use the REST API or SMTP relay to send personalized email from your product.</p><pre><code>POST /v1/messages{`\n`}from: hello@mail.metrovps.com{`\n`}to: customer@example.com</code></pre><Link href="/app/api-keys/docs">Read the API guide <ArrowRight size={13} /></Link><div className="transactional-aside-domain"><span className="status-dot green-dot" /> mail.metrovps.com <StatusBadge status="Verified" /></div></aside></div><section className="transactional-recent"><div className="panel-heading"><div><h2>Recent transactional events</h2><p>Latest message activity across your workspace.</p></div><Link href="/app/logs">All email logs <ArrowRight size={13} /></Link></div>{getRowsForRoute('logs').slice(0, 4).map((row) => <div className="transactional-event-row" key={row.name}><span className="event-type-icon"><Mail size={14} /></span><span><b>{row.name}</b><small>{row.detail}</small></span><StatusBadge status={row.status} /><span className="event-time">{row.date}</span><Link href={`/app/logs/${row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} aria-label={`View ${row.name} message`}><ArrowUpRight size={14} /></Link></div>)}</section></>
+
+  const handleSendTest = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!recipient) {
+      onAction('Please enter a recipient email address.')
+      return
+    }
+    setSent(true)
+    onAction(`Demo transactional message queued for ${recipient}. No external email was sent.`)
+  }
+
+  return (
+    <>
+      <div className="page-heading-row">
+        <div>
+          <div className="page-eyebrow">
+            DELIVERABILITY <span>/</span> TRANSACTIONAL EMAIL
+          </div>
+          <h1>Transactional email</h1>
+          <p>Send and monitor the product messages your customers rely on.</p>
+        </div>
+        <Link href="/app/transactional/logs" className="button button-secondary">
+          View message logs <ArrowRight size={14} />
+        </Link>
+      </div>
+
+      <section className="transactional-metrics">
+        {[
+          ['Delivered this month', '182,408', '+8.6%'],
+          ['Delivery rate', '99.98%', '+0.3%'],
+          ['Median latency', '48 ms', '−6 ms'],
+          ['Failed messages', '84', '−12.4%'],
+        ].map(([label, value, change]) => (
+          <article key={label}>
+            <small>{label}</small>
+            <b>{value}</b>
+            <span>
+              <ArrowUpRight size={12} /> {change}
+            </span>
+          </article>
+        ))}
+      </section>
+
+      {/* Developer API & SMTP Quick Reference Banner */}
+      <div className="transactional-developer-banner">
+        <div className="developer-banner-left">
+          <span className="transactional-aside-icon">
+            <Braces size={20} />
+          </span>
+          <div>
+            <h3>Built for Developer APIs &amp; High-Speed SMTP Relay</h3>
+            <p>
+              Send personalized transactional emails from your product using our REST API (<code>POST /v1/messages</code>) or dedicated SMTP relay with sub-50ms latency.
+            </p>
+            <div className="developer-banner-domain">
+              <span className="status-dot green-dot" /> Verified sending domain:{' '}
+              <strong>mail.metrovps.com</strong> <StatusBadge status="Verified" />
+            </div>
+          </div>
+        </div>
+        <div className="developer-banner-right">
+          <pre>
+            <code>
+              {`POST /v1/messages\nfrom: hello@mail.metrovps.com\nto: customer@example.com`}
+            </code>
+          </pre>
+          <Link href="/app/api-keys/docs" className="button button-secondary">
+            API Guide <ArrowRight size={13} />
+          </Link>
+        </div>
+      </div>
+
+      <div className="transactional-workspace">
+        <section className="transactional-send-card">
+          <div className="panel-heading">
+            <div>
+              <h2>Send a test transactional message</h2>
+              <p>Configure parameters and design your transactional template with live visual &amp; code preview.</p>
+            </div>
+            <span className="transactional-test-badge">TEST MODE</span>
+          </div>
+
+          {sent && (
+            <div className="transactional-success">
+              <Check size={14} /> Test message queued in the local demo for <strong>{recipient}</strong>. No email was sent.
+            </div>
+          )}
+
+          {/* Form parameters */}
+          <div className="transactional-form-top-grid">
+            <label>
+              <span>From address</span>
+              <select value={fromAddress} onChange={(e) => setFromAddress(e.target.value)}>
+                <option value="MetroVPS <hello@mail.metrovps.com>">MetroVPS &lt;hello@mail.metrovps.com&gt;</option>
+                <option value="Notifications <notify@mail.metrovps.com>">Notifications &lt;notify@mail.metrovps.com&gt;</option>
+                <option value="Billing & Orders <orders@mail.metrovps.com>">Billing &amp; Orders &lt;orders@mail.metrovps.com&gt;</option>
+              </select>
+            </label>
+            <label>
+              <span>To address</span>
+              <input
+                type="email"
+                required
+                value={recipient}
+                onChange={(event) => {
+                  setRecipient(event.target.value)
+                  setSent(false)
+                }}
+                placeholder="customer@example.com"
+              />
+            </label>
+            <label className="subject-field">
+              <span>Subject line</span>
+              <input
+                required
+                value={subject}
+                onChange={(event) => setSubject(event.target.value)}
+                placeholder="e.g. Your order is on its way"
+              />
+            </label>
+          </div>
+
+          {/* Design your email option replacing simple message textarea */}
+          <div className="transactional-design-section">
+            <div className="transactional-design-header">
+              <div>
+                <div className="eyebrow">
+                  <Sparkles size={13} /> DESIGN YOUR EMAIL
+                </div>
+                <h3>Visual Drag &amp; Drop, HTML Code &amp; Templates</h3>
+                <p>Customize your transactional email blocks, switch to HTML code editor, or pick a reusable transactional template.</p>
+              </div>
+            </div>
+
+            <div className="transactional-editor-wrapper">
+              <EmailEditor onAction={onAction} subject={subject || 'Your order is on its way'} />
+            </div>
+          </div>
+
+          {/* Footer with Send Button */}
+          <div className="transactional-form-footer">
+            <span>
+              <ShieldCheck size={14} /> Test messages are local-only simulation
+            </span>
+            <button className="button button-primary" type="button" onClick={() => handleSendTest()}>
+              <Send size={14} /> Send test message
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <section className="transactional-recent">
+        <div className="panel-heading">
+          <div>
+            <h2>Recent transactional events</h2>
+            <p>Latest message activity across your workspace.</p>
+          </div>
+          <Link href="/app/logs">
+            All email logs <ArrowRight size={13} />
+          </Link>
+        </div>
+        {getRowsForRoute('logs')
+          .slice(0, 4)
+          .map((row) => (
+            <div className="transactional-event-row" key={row.name}>
+              <span className="event-type-icon">
+                <Mail size={14} />
+              </span>
+              <span>
+                <b>{row.name}</b>
+                <small>{row.detail}</small>
+              </span>
+              <StatusBadge status={row.status} />
+              <span className="event-time">{row.date}</span>
+              <Link
+                href={`/app/logs/${row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                aria-label={`View ${row.name} message`}
+              >
+                <ArrowUpRight size={14} />
+              </Link>
+            </div>
+          ))}
+      </section>
+    </>
+  )
 }
 
 function ContactDetailPage({ route, onAction, customRows }: { route: string; onAction: (message: string) => void; customRows: MockRow[] }) {
