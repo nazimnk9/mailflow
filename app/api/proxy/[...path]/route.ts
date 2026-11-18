@@ -6,6 +6,7 @@ async function handleProxyRequest(
   request: Request,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  const startTime = Date.now()
   try {
     const { path } = await params
     const endpointPath = path.join('/')
@@ -49,8 +50,31 @@ async function handleProxyRequest(
       data = text
     }
 
-    return NextResponse.json(data, { status: backendRes.status })
+    const duration = Date.now() - startTime
+    const isDev = process.env.NODE_ENV !== 'production'
+
+    if (isDev) {
+      console.log(
+        `[PROXY] ${request.method} /api/proxy/${endpointPath} -> ${backendUrl} [${backendRes.status}] (${duration}ms)`
+      )
+    }
+
+    const responseHeaders: Record<string, string> = {}
+    if (isDev) {
+      responseHeaders['x-backend-url'] = backendUrl
+      responseHeaders['x-backend-status'] = String(backendRes.status)
+      responseHeaders['x-proxy-duration-ms'] = `${duration}ms`
+    }
+
+    return NextResponse.json(data, {
+      status: backendRes.status,
+      headers: responseHeaders,
+    })
   } catch (error: any) {
+    const duration = Date.now() - startTime
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(`[PROXY ERROR] (${duration}ms):`, error?.message || error)
+    }
     return NextResponse.json(
       { success: false, message: error?.message || 'Proxy request failed' },
       { status: 500 }

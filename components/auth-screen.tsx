@@ -30,6 +30,7 @@ import {
   useResendOtpMutation,
   useVerifyOtpMutation,
 } from '@/lib/hooks/use-auth-mutations'
+import { formatApiErrorMessage } from '@/lib/api-client'
 
 const authSchema = z.object({
   name: z.string().optional(),
@@ -180,7 +181,7 @@ export function AuthScreen({ page = 'login' }: { page?: string }) {
     } catch (err: any) {
       setBanner({
         type: 'error',
-        message: err.message || err.errors || 'Failed to resend OTP code. Please try again.',
+        message: formatApiErrorMessage(err, 'Failed to resend OTP code. Please try again.'),
       })
     }
   }
@@ -250,7 +251,10 @@ export function AuthScreen({ page = 'login' }: { page?: string }) {
       } catch (err: any) {
         setBanner({
           type: 'error',
-          message: err.message || err.errors || 'Registration failed. Please check your details and try again.',
+          message: formatApiErrorMessage(
+            err,
+            'Registration failed. Please check your details and try again.'
+          ),
         })
       }
       return
@@ -277,7 +281,10 @@ export function AuthScreen({ page = 'login' }: { page?: string }) {
       } catch (err: any) {
         setBanner({
           type: 'error',
-          message: err.message || err.errors || 'Invalid verification code. Please check your inbox and try again.',
+          message: formatApiErrorMessage(
+            err,
+            'Invalid verification code. Please check your inbox and try again.'
+          ),
         })
       }
       return
@@ -299,7 +306,10 @@ export function AuthScreen({ page = 'login' }: { page?: string }) {
       } catch (err: any) {
         setBanner({
           type: 'error',
-          message: err.message || err.errors || 'Invalid email or password. Please try again.',
+          message: formatApiErrorMessage(
+            err,
+            'Invalid email or password. Please try again.'
+          ),
         })
       }
       return
