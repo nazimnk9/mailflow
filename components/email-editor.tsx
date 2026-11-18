@@ -48,6 +48,7 @@ type EmailEditorProps = {
   initialHtml?: string
   initialPlainText?: string
   subject?: string
+  onChange?: (content: { html: string; text: string }) => void
 }
 
 const COLOR_SWATCHES = [
@@ -78,12 +79,27 @@ export function EmailEditor({
   initialHtml,
   initialPlainText,
   subject = 'A few things we’ve been working on',
+  onChange,
 }: EmailEditorProps) {
   // Current active template
   const defaultTemplate = EMAIL_TEMPLATES[0]
   const [currentTemplateId, setCurrentTemplateId] = useState(defaultTemplate.id)
   const [htmlContent, setHtmlContent] = useState(initialHtml || defaultTemplate.html)
   const [plainTextContent, setPlainTextContent] = useState(initialPlainText || defaultTemplate.plainText)
+
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const lastEmittedRef = useRef({ html: '', text: '' })
+
+  useEffect(() => {
+    if (
+      lastEmittedRef.current.html !== htmlContent ||
+      lastEmittedRef.current.text !== plainTextContent
+    ) {
+      lastEmittedRef.current = { html: htmlContent, text: plainTextContent }
+      onChangeRef.current?.({ html: htmlContent, text: plainTextContent })
+    }
+  }, [htmlContent, plainTextContent])
   
   // Editor view modes: 'visual' | 'html' | 'plaintext'
   const [editorMode, setEditorMode] = useState<'visual' | 'html' | 'plaintext'>('visual')

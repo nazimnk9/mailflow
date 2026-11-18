@@ -21,6 +21,10 @@ import { AutomationVisualCanvas } from '@/components/automation-visual-canvas'
 import { InboxPlacementSuite } from '@/components/inbox-placement-suite'
 import { InboundRoutesBuilder } from '@/components/inbound-routes-builder'
 import { DomainsManagement } from '@/components/domains-management'
+import { TransactionalPage } from '@/components/transactional-page'
+import { EmailLogsPage } from '@/components/email-logs-page'
+import { MessageDetailPage } from '@/components/message-detail-page'
+import { StatusBadge } from '@/components/status-badge'
 
 type Props = { route: string; search: string; setSearch: (value: string) => void; onAction: (message: string) => void; onOpenAction: (action: 'contact' | 'key' | 'domain' | 'list' | 'form' | 'attribute' | 'ticket' | null) => void; completed: string[]; onToggleChecklist: (id: string) => void; customRows: MockRow[]; onImportRows: (rows: MockRow[]) => void; onCreateRows: (rows: MockRow[]) => void }
 const titles: Record<string, [string, string]> = {
@@ -32,7 +36,6 @@ function resolveTitle(route: string): [string, string] {
   const prefix = route.split('/')[0]
   return titles[prefix] ?? [route.split('/').at(-1)?.replace(/-/g, ' ').replace(/\b\w/g, (value) => value.toUpperCase()) ?? 'Workspace', 'A clear view of the tools and activity in your email workspace.']
 }
-function StatusBadge({ status }: { status: string }) { const lower = status.toLowerCase(); const tone = lower.includes('verified') || lower.includes('delivered') || lower.includes('paid') || lower.includes('active') || lower.includes('subscribed') || lower.includes('connected') || lower.includes('allowlisted') || lower.includes('opened') || lower.includes('clicked') ? 'status-good' : lower.includes('action') || lower.includes('bounce') || lower.includes('complaint') || lower.includes('unsubscribed') || lower.includes('blocklisted') ? 'status-warn' : lower.includes('revoked') || lower.includes('paused') ? 'status-muted' : 'status-blue'; return <span className={`status-badge ${tone}`}><i />{status}</span> }
 
 function getCustomRowsForRoute(route: string, rows: MockRow[]): MockRow[] {
   const kindByRoute: Record<string, string> = {
@@ -117,9 +120,21 @@ export function DashboardContent(props: Props) {
   if (route === 'contacts/import') return <ContactImportPage onAction={onAction} onImport={onImportRows} />
   if (route === 'contacts/segments') return <SegmentBuilder onAction={onAction} />
   if (route === 'transactional') return <TransactionalPage onAction={onAction} />
+  if (
+    route === 'logs' ||
+    route.startsWith('logs/') ||
+    route === 'transactional/logs' ||
+    route.startsWith('transactional/logs/')
+  ) {
+    const sub = route.replace(/^(transactional\/)?logs\/?/, '')
+    const filterTabs = ['all', 'delivered', 'pending', 'failed', 'bounced', 'opened', 'clicked', 'rejected', 'complaints', 'unsubscribes']
+    if (sub && !filterTabs.includes(sub.toLowerCase())) {
+      return <MessageDetailPage route={route} mailId={sub} onAction={onAction} />
+    }
+    return <EmailLogsPage route={route} onAction={onAction} />
+  }
   if (route.startsWith('campaigns/') && route.endsWith('/report')) return <CampaignReportPage route={route} onAction={onAction} customRows={customRows} />
   if (route.startsWith('contacts/') && !['lists', 'segments', 'import', 'forms', 'attributes', 'unsubscribed', 'blocklisted'].includes(route.split('/')[1])) return <ContactDetailPage route={route} onAction={onAction} customRows={customRows} />
-  if (route.startsWith('logs/') && !['failed', 'delivered', 'bounced', 'opened', 'clicked', 'rejected', 'complaints', 'unsubscribes'].includes(route.split('/')[1])) return <MessageDetailPage route={route} onAction={onAction} />
   if (route === 'campaigns/create') return <CampaignBuilder step={campaignStep} setStep={setCampaignStep} name={campaignName} setName={setCampaignName} onComplete={completeCampaign} onAction={onAction} abTestEnabled={abTestEnabled} setAbTestEnabled={setAbTestEnabled} />
   if (route === 'automations/create') return <WorkflowBuilder running={workflowRunning} setRunning={setWorkflowRunning} onAction={onAction} />
   if (route.startsWith('settings')) return <SettingsPage route={route} selectedTab={selectedSettingsTab} setSelectedTab={setSelectedSettingsTab} onAction={onAction} saved={saved} setSaved={setSaved} showPassword={showPassword} setShowPassword={setShowPassword} />
@@ -212,198 +227,6 @@ function SegmentBuilder({ onAction }: { onAction: (message: string) => void }) {
   return <><div className="page-heading-row"><div><div className="page-eyebrow">CONTACTS & CRM <span>/</span> SEGMENT BUILDER</div><h1>Build an audience segment</h1><p>Combine contact attributes and engagement to find the right people.</p></div><button className="button button-primary" onClick={() => onAction(`Segment “${name || 'Untitled segment'}” saved for this demo.`)}><Check size={14} /> Save segment</button></div><div className="segment-builder-layout"><section className="segment-builder-card"><label className="segment-name-field">Segment name<input value={name} onChange={(event) => setName(event.target.value)} /></label><div className="segment-match-row"><span>Contacts must match</span><select aria-label="Match conditions"><option>all conditions</option><option>any condition</option></select><span>below</span></div><div className="segment-rules">{rules.map((rule, index) => <div className="segment-rule" key={index}><span className="rule-index">{index + 1}</span><select aria-label={`Filter field ${index + 1}`} value={rule.field} onChange={(event) => updateRule(index, 'field', event.target.value)}><option>Email engagement</option><option>Contact tag</option><option>Signup date</option><option>Country</option><option>Lifecycle stage</option></select><select aria-label={`Filter operator ${index + 1}`} value={rule.operator} onChange={(event) => updateRule(index, 'operator', event.target.value)}><option>has</option><option>is</option><option>is not</option><option>is within</option></select><select aria-label={`Filter value ${index + 1}`} value={rule.value} onChange={(event) => updateRule(index, 'value', event.target.value)}><option>Opened any campaign</option><option>Clicked any campaign</option><option>Added in the last 30 days</option><option>Customer</option><option>Trial</option></select><button aria-label={`Remove condition ${index + 1}`} onClick={() => removeRule(index)}><X size={14} /></button></div>)}</div><button className="segment-add-rule" onClick={() => setRules((current) => [...current, { field: 'Contact tag', operator: 'is', value: 'Customer' }])}><Plus size={13} /> Add condition</button><div className="segment-builder-footer"><span>Preview updates as you refine your conditions.</span><button className="button button-secondary" onClick={() => onAction(`${estimatedCount.toLocaleString()} contacts match this segment.`)}>Preview segment <ArrowRight size={13} /></button></div></section><aside className="segment-preview-card"><span className="segment-preview-icon"><ContactRound size={18} /></span><small>ESTIMATED AUDIENCE</small><b>{estimatedCount.toLocaleString()}</b><span>contacts match</span><div className="segment-audience-bars"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div><p>Based on your latest contact activity in the demo workspace.</p><Link href="/app/contacts">View all contacts <ArrowRight size={13} /></Link></aside></div></>
 }
 
-function TransactionalPage({ onAction }: { onAction: (message: string) => void }) {
-  const [recipient, setRecipient] = useState('')
-  const [subject, setSubject] = useState('Your order is on its way')
-  const [fromAddress, setFromAddress] = useState('MetroVPS <hello@mail.metrovps.com>')
-  const [sent, setSent] = useState(false)
-
-  const handleSendTest = (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    if (!recipient) {
-      onAction('Please enter a recipient email address.')
-      return
-    }
-    setSent(true)
-    onAction(`Demo transactional message queued for ${recipient}. No external email was sent.`)
-  }
-
-  return (
-    <>
-      <div className="page-heading-row">
-        <div>
-          <div className="page-eyebrow">
-            DELIVERABILITY <span>/</span> TRANSACTIONAL EMAIL
-          </div>
-          <h1>Transactional email</h1>
-          <p>Send and monitor the product messages your customers rely on.</p>
-        </div>
-        <Link href="/app/transactional/logs" className="button button-secondary">
-          View message logs <ArrowRight size={14} />
-        </Link>
-      </div>
-
-      <section className="transactional-metrics">
-        {[
-          ['Delivered this month', '182,408', '+8.6%'],
-          ['Delivery rate', '99.98%', '+0.3%'],
-          ['Median latency', '48 ms', '−6 ms'],
-          ['Failed messages', '84', '−12.4%'],
-        ].map(([label, value, change]) => (
-          <article key={label}>
-            <small>{label}</small>
-            <b>{value}</b>
-            <span>
-              <ArrowUpRight size={12} /> {change}
-            </span>
-          </article>
-        ))}
-      </section>
-
-      {/* Developer API & SMTP Quick Reference Banner */}
-      <div className="transactional-developer-banner">
-        <div className="developer-banner-left">
-          <span className="transactional-aside-icon">
-            <Braces size={20} />
-          </span>
-          <div>
-            <h3>Built for Developer APIs &amp; High-Speed SMTP Relay</h3>
-            <p>
-              Send personalized transactional emails from your product using our REST API (<code>POST /v1/messages</code>) or dedicated SMTP relay with sub-50ms latency.
-            </p>
-            <div className="developer-banner-domain">
-              <span className="status-dot green-dot" /> Verified sending domain:{' '}
-              <strong>mail.metrovps.com</strong> <StatusBadge status="Verified" />
-            </div>
-          </div>
-        </div>
-        <div className="developer-banner-right">
-          <pre>
-            <code>
-              {`POST /v1/messages\nfrom: hello@mail.metrovps.com\nto: customer@example.com`}
-            </code>
-          </pre>
-          <Link href="/app/api-keys/docs" className="button button-secondary">
-            API Guide <ArrowRight size={13} />
-          </Link>
-        </div>
-      </div>
-
-      <div className="transactional-workspace">
-        <section className="transactional-send-card">
-          <div className="panel-heading">
-            <div>
-              <h2>Send a test transactional message</h2>
-              <p>Configure parameters and design your transactional template with live visual &amp; code preview.</p>
-            </div>
-            <span className="transactional-test-badge">TEST MODE</span>
-          </div>
-
-          {sent && (
-            <div className="transactional-success">
-              <Check size={14} /> Test message queued in the local demo for <strong>{recipient}</strong>. No email was sent.
-            </div>
-          )}
-
-          {/* Form parameters */}
-          <div className="transactional-form-top-grid">
-            <label>
-              <span>From address</span>
-              <select value={fromAddress} onChange={(e) => setFromAddress(e.target.value)}>
-                <option value="MetroVPS <hello@mail.metrovps.com>">MetroVPS &lt;hello@mail.metrovps.com&gt;</option>
-                <option value="Notifications <notify@mail.metrovps.com>">Notifications &lt;notify@mail.metrovps.com&gt;</option>
-                <option value="Billing & Orders <orders@mail.metrovps.com>">Billing &amp; Orders &lt;orders@mail.metrovps.com&gt;</option>
-              </select>
-            </label>
-            <label>
-              <span>To address</span>
-              <input
-                type="email"
-                required
-                value={recipient}
-                onChange={(event) => {
-                  setRecipient(event.target.value)
-                  setSent(false)
-                }}
-                placeholder="customer@example.com"
-              />
-            </label>
-            <label className="subject-field">
-              <span>Subject line</span>
-              <input
-                required
-                value={subject}
-                onChange={(event) => setSubject(event.target.value)}
-                placeholder="e.g. Your order is on its way"
-              />
-            </label>
-          </div>
-
-          {/* Design your email option replacing simple message textarea */}
-          <div className="transactional-design-section">
-            <div className="transactional-design-header">
-              <div>
-                <div className="eyebrow">
-                  <Sparkles size={13} /> DESIGN YOUR EMAIL
-                </div>
-                <h3>Visual Drag &amp; Drop, HTML Code &amp; Templates</h3>
-                <p>Customize your transactional email blocks, switch to HTML code editor, or pick a reusable transactional template.</p>
-              </div>
-            </div>
-
-            <div className="transactional-editor-wrapper">
-              <EmailEditor onAction={onAction} subject={subject || 'Your order is on its way'} />
-            </div>
-          </div>
-
-          {/* Footer with Send Button */}
-          <div className="transactional-form-footer">
-            <span>
-              <ShieldCheck size={14} /> Test messages are local-only simulation
-            </span>
-            <button className="button button-primary" type="button" onClick={() => handleSendTest()}>
-              <Send size={14} /> Send test message
-            </button>
-          </div>
-        </section>
-      </div>
-
-      <section className="transactional-recent">
-        <div className="panel-heading">
-          <div>
-            <h2>Recent transactional events</h2>
-            <p>Latest message activity across your workspace.</p>
-          </div>
-          <Link href="/app/logs">
-            All email logs <ArrowRight size={13} />
-          </Link>
-        </div>
-        {getRowsForRoute('logs')
-          .slice(0, 4)
-          .map((row) => (
-            <div className="transactional-event-row" key={row.name}>
-              <span className="event-type-icon">
-                <Mail size={14} />
-              </span>
-              <span>
-                <b>{row.name}</b>
-                <small>{row.detail}</small>
-              </span>
-              <StatusBadge status={row.status} />
-              <span className="event-time">{row.date}</span>
-              <Link
-                href={`/app/logs/${row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                aria-label={`View ${row.name} message`}
-              >
-                <ArrowUpRight size={14} />
-              </Link>
-            </div>
-          ))}
-      </section>
-    </>
-  )
-}
-
 function ContactDetailPage({ route, onAction, customRows }: { route: string; onAction: (message: string) => void; customRows: MockRow[] }) {
   const slug = route.split('/').at(-1) ?? ''
   const contact = [...customRows.filter((row) => row.kind === 'Contact'), ...getRowsForRoute('contacts')].find((row) => row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug)
@@ -417,12 +240,6 @@ function CampaignReportPage({ route, onAction, customRows }: { route: string; on
   const campaign = [...customRows.filter((row) => row.kind === 'Campaign'), ...getRowsForRoute('campaigns')].find((row) => row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug)
   const name = campaign?.name ?? slug.split('-').map((part) => part[0]?.toUpperCase() + part.slice(1)).join(' ')
   return <><div className="page-heading-row"><div><div className="page-eyebrow"><Link href="/app/campaigns">CAMPAIGNS</Link> <span>/</span> REPORT</div><h1>{name}</h1><p>{campaign?.detail ?? 'Campaign report and audience engagement.'}</p></div><button className="button button-secondary" onClick={() => onAction('Campaign report exported.')}>Export report <ArrowDownToLine size={14} /></button></div><section className="campaign-report-summary">{[['Delivered', '8,392', '99.7%'], ['Unique opens', '3,596', '42.8%'], ['Unique clicks', '721', '8.6%'], ['Bounces', '15', '0.18%']].map(([label, value, rate]) => <article key={label}><small>{label}</small><b>{value}</b><span>{rate} of recipients</span></article>)}</section><div className="campaign-report-layout"><section className="dashboard-panel"><div className="panel-heading"><div><h2>Engagement over time</h2><p>Opens and clicks since the campaign was sent</p></div><StatusBadge status={campaign?.status ?? 'Sent'} /></div><div className="analytics-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 12, right: 10, left: -18, bottom: 0 }}><CartesianGrid stroke="#edf1f6" vertical={false} /><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#98a2b3', fontSize: 11 }} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#98a2b3', fontSize: 11 }} /><Tooltip /><Area type="monotone" dataKey="opened" stroke="#146ef5" fill="#1677f91a" strokeWidth={2} /><Area type="monotone" dataKey="clicked" stroke="#12b7dc" fill="#12b7dc12" strokeWidth={2} /></AreaChart></ResponsiveContainer></div></section><section className="dashboard-panel campaign-report-side"><h2>Campaign details</h2><div><span>Status</span><StatusBadge status={campaign?.status ?? 'Sent'} /></div><div><span>Recipients</span><b>8,420</b></div><div><span>Subject line</span><b>A few things we’ve been working on</b></div><div><span>Sent</span><b>Nov 12, 2026 · 10:04 AM</b></div><button className="button button-secondary" onClick={() => onAction('A/B test variation report opened.')}>Compare variations</button></section></div></>
-}
-
-function MessageDetailPage({ route, onAction }: { route: string; onAction: (message: string) => void }) {
-  const slug = route.split('/').at(-1) ?? ''
-  const log = getRowsForRoute('logs').find((row) => row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug) ?? getRowsForRoute('logs')[0]
-  return <><div className="page-heading-row"><div><div className="page-eyebrow"><Link href="/app/logs">EMAIL LOGS</Link> <span>/</span> MESSAGE DETAIL</div><h1>{log.name}</h1><p>Delivery events and message metadata for this email.</p></div><div className="page-heading-actions"><button className="button button-secondary" onClick={() => onAction('Message details exported.')}>Export details <ArrowDownToLine size={14} /></button><Link className="button button-secondary" href="/app/logs">Back to logs</Link></div></div><div className="message-detail-layout"><section className="message-detail-card"><div className="message-detail-top"><div><small>RECIPIENT</small><b>{log.detail.split(' · ')[0]}</b></div><StatusBadge status={log.status} /><button aria-label="Copy message id" onClick={() => onAction('Message ID copied.')}>Copy ID <Copy size={13} /></button></div><div className="message-meta-grid"><div><small>SUBJECT</small><b>{log.name}</b></div><div><small>SOURCE</small><b>{log.detail.split(' · ')[1]}</b></div><div><small>MESSAGE ID</small><code>msg_demo_7f2a9c184b</code></div><div><small>LATENCY</small><b>{log.metric}</b></div></div><div className="message-content-preview"><small>MESSAGE CONTENT PREVIEW</small><p>Hello,</p><p>Your latest update from MetroVPS is ready. Open your account to explore what’s new.</p><p>— The MetroVPS team</p></div></section><section className="message-timeline-card"><h2>Event timeline</h2><p>All timestamps shown in workspace timezone.</p><div className="message-event-timeline">{[['10:42:08 AM', 'Accepted', 'Message accepted by MetroMail infrastructure.', 'green'], ['10:42:08 AM', 'Delivered', 'Mailbox provider confirmed delivery.', 'green'], ['10:44:31 AM', 'Opened', 'Recipient opened the message.', 'blue'], ['10:46:02 AM', 'Clicked', 'Recipient clicked a link in the message.', 'purple']].map(([time, title, detail, tone]) => <div key={title}><span className={`timeline-dot timeline-${tone}`} /><span><small>{time}</small><b>{title}</b><em>{detail}</em></span></div>)}</div></section></div></>
 }
 
 function CampaignBuilder({ step, setStep, name, setName, onComplete, onAction, abTestEnabled, setAbTestEnabled }: { step: number; setStep: (step: number) => void; name: string; setName: (name: string) => void; onComplete: () => void; onAction: (message: string) => void; abTestEnabled: boolean; setAbTestEnabled: (enabled: boolean) => void }) {
