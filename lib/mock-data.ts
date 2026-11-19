@@ -8,37 +8,41 @@ export type MockRow = {
 }
 
 export type NavItem = { label: string; href: string; icon: string }
-export type NavGroup = { label: string; items: NavItem[] }
+export type NavGroup = { label: string; icon?: string; items: NavItem[] }
 
 export const dashboardNav: NavGroup[] = [
-  { label: 'Workspace', items: [
-    { label: 'Overview', href: '/app/overview', icon: 'LayoutDashboard' },
-    { label: 'Campaigns', href: '/app/campaigns', icon: 'Send' },
-    { label: 'SMS & WhatsApp', href: '/app/campaigns/sms', icon: 'Smartphone' },
-    { label: 'Contacts & CRM', href: '/app/contacts', icon: 'ContactRound' },
-    { label: 'Sales Deals', href: '/app/deals', icon: 'Kanban' },
-    { label: 'Automations', href: '/app/automations', icon: 'Workflow' },
-    { label: 'Form Builder', href: '/app/forms', icon: 'Sliders' },
-  ] },
-  { label: 'Deliverability', items: [
-    { label: 'Transactional email', href: '/app/transactional', icon: 'MailCheck' },
-    { label: 'Sending domains', href: '/app/domains', icon: 'Globe2' },
-    { label: 'Email Validator', href: '/app/verify', icon: 'CheckCheck' },
-    { label: 'Inbox Placement', href: '/app/inbox-placement', icon: 'Inbox' },
-    { label: 'Inbound Routes', href: '/app/inbound-routes', icon: 'Route' },
-    { label: 'SMTP & API', href: '/app/api-keys', icon: 'Braces' },
-    { label: 'Email logs', href: '/app/logs', icon: 'ListFilter' },
+  // { label: 'Workspace', items: [
+  //   { label: 'Overview', href: '/app/overview', icon: 'LayoutDashboard' },
+  //   { label: 'Campaigns', href: '/app/campaigns', icon: 'Send' },
+  //   { label: 'SMS & WhatsApp', href: '/app/campaigns/sms', icon: 'Smartphone' },
+  //   { label: 'Contacts & CRM', href: '/app/contacts', icon: 'ContactRound' },
+  //   { label: 'Sales Deals', href: '/app/deals', icon: 'Kanban' },
+  //   { label: 'Automations', href: '/app/automations', icon: 'Workflow' },
+  //   { label: 'Form Builder', href: '/app/forms', icon: 'Sliders' },
+  // ] },
+  { label: 'Deliverability', icon: 'Send', items: [
+    { label: 'Domains', href: '/app/domains', icon: 'Globe2' },
     { label: 'Suppressions', href: '/app/suppressions', icon: 'ShieldBan' },
+    { label: 'Webhooks', href: '/app/webhooks', icon: 'Webhook' },
+    { label: 'Mailing Lists', href: '/app/mailing-lists', icon: 'Users' },
+    { label: 'Domain Settings', href: '/app/domain-settings', icon: 'Settings2' },
+    { label: 'Receiving', href: '/app/receiving', icon: 'Inbox' },
+    { label: 'Transactional email', href: '/app/transactional', icon: 'MailCheck' },
+    // { label: 'Email Validator', href: '/app/verify', icon: 'CheckCheck' },
+    // { label: 'Inbox Placement', href: '/app/inbox-placement', icon: 'Inbox' },
+    // { label: 'Inbound Routes', href: '/app/inbound-routes', icon: 'Route' },
+    // { label: 'SMTP & API', href: '/app/api-keys', icon: 'Braces' },
+    { label: 'Email logs', href: '/app/logs', icon: 'ListFilter' },
   ] },
-  { label: 'Insights', items: [
-    { label: 'Analytics', href: '/app/analytics', icon: 'ChartNoAxesCombined' },
-    { label: 'Integrations', href: '/app/integrations', icon: 'Blocks' },
-  ] },
-  { label: 'Manage', items: [
-    { label: 'Billing & usage', href: '/app/billing', icon: 'CreditCard' },
-    { label: 'Settings', href: '/app/settings', icon: 'Settings2' },
-    { label: 'Help & support', href: '/app/support', icon: 'CircleHelp' },
-  ] },
+  // { label: 'Insights', items: [
+  //   { label: 'Analytics', href: '/app/analytics', icon: 'ChartNoAxesCombined' },
+  //   { label: 'Integrations', href: '/app/integrations', icon: 'Blocks' },
+  // ] },
+  // { label: 'Manage', items: [
+  //   { label: 'Billing & usage', href: '/app/billing', icon: 'CreditCard' },
+  //   { label: 'Settings', href: '/app/settings', icon: 'Settings2' },
+  //   { label: 'Help & support', href: '/app/support', icon: 'CircleHelp' },
+  // ] },
 ]
 
 export const chartData = [
