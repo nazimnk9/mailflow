@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   AlertCircle,
@@ -178,105 +177,6 @@ function RowActionMenuItem({
   )
 }
 
-function ActionDropdownPortal({
-  anchorEl,
-  isOpen,
-  onClose,
-  children,
-}: {
-  anchorEl: HTMLElement | null
-  isOpen: boolean
-  onClose: () => void
-  children: React.ReactNode
-}) {
-  const [coords, setCoords] = useState<{ top: number; left: number; openUp: boolean } | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
-
-  const updatePosition = useCallback(() => {
-    if (!anchorEl) return
-    const rect = anchorEl.getBoundingClientRect()
-    const menuWidth = 180
-    const menuHeight = 145
-    const spaceBelow = window.innerHeight - rect.bottom
-    const openUp = spaceBelow < menuHeight + 10 && rect.top > menuHeight
-
-    const top = openUp ? rect.top - menuHeight - 4 : rect.bottom + 4
-    let left = rect.right - menuWidth
-    if (left < 10) left = 10
-    if (left + menuWidth > window.innerWidth - 10) left = window.innerWidth - menuWidth - 10
-
-    setCoords({ top, left, openUp })
-  }, [anchorEl])
-
-  useEffect(() => {
-    if (!isOpen || !anchorEl) {
-      setCoords(null)
-      return
-    }
-    updatePosition()
-
-    const handleScrollOrResize = () => {
-      onClose()
-    }
-    const handleOutside = (e: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(e.target as Node) &&
-        !anchorEl.contains(e.target as Node)
-      ) {
-        onClose()
-      }
-    }
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-
-    window.addEventListener('scroll', handleScrollOrResize, true)
-    window.addEventListener('resize', handleScrollOrResize)
-    document.addEventListener('mousedown', handleOutside)
-    document.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('scroll', handleScrollOrResize, true)
-      window.removeEventListener('resize', handleScrollOrResize)
-      document.removeEventListener('mousedown', handleOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isOpen, anchorEl, onClose, updatePosition])
-
-  if (!isOpen || !coords || typeof document === 'undefined') return null
-
-  return createPortal(
-    <div
-      ref={menuRef}
-      className={`row-action-menu row-action-menu-portal ${coords.openUp ? 'open-up' : ''}`}
-      role="menu"
-      aria-orientation="vertical"
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        position: 'fixed',
-        zIndex: 999999,
-        top: `${coords.top}px`,
-        left: `${coords.left}px`,
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: '175px',
-        width: 'max-content',
-        padding: '6px',
-        border: '1px solid #e2e8f0',
-        borderRadius: '9px',
-        backgroundColor: '#ffffff',
-        boxShadow:
-          '0 12px 30px -4px rgba(15, 23, 42, 0.22), 0 6px 14px -3px rgba(15, 23, 42, 0.12)',
-        animation: 'fadeInRowMenu 0.12s ease-out',
-      }}
-    >
-      {children}
-    </div>,
-    document.body
-  )
-}
-
 function AssignToListMultiSelect({
   lists,
   selectedListIds,
@@ -410,16 +310,18 @@ function AssignToListMultiSelect({
         }}
         style={{
           minHeight: '42px',
-          padding: '6px 10px',
-          border: isOpen ? '1px solid #2563eb' : '1px solid #e0e6ed',
-          boxShadow: isOpen ? '0 0 0 3px rgba(37, 99, 235, 0.12)' : 'none',
-          borderRadius: '7px',
+          padding: '6px 12px',
+          border: isOpen ? '1px solid #2563eb' : '1px solid #cbd5e1',
+          boxShadow: isOpen ? '0 0 0 3px rgba(37, 99, 235, 0.14)' : 'none',
+          borderRadius: '8px',
           backgroundColor: disabled ? '#f8fafc' : '#ffffff',
           cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '8px',
+          boxSizing: 'border-box',
+          width: '100%',
           transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
         }}
       >
@@ -568,13 +470,14 @@ function AssignToListMultiSelect({
             zIndex: 1050,
             backgroundColor: '#ffffff',
             border: '1px solid #e2e8f0',
-            borderRadius: '9px',
+            borderRadius: '10px',
             boxShadow:
               '0 14px 35px -5px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.08)',
             padding: '6px',
             display: 'flex',
             flexDirection: 'column',
             gap: '6px',
+            boxSizing: 'border-box',
             animation: 'fadeInRowMenu 0.12s ease-out',
           }}
         >
@@ -833,9 +736,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
 
   // Dropdown row action open tracker
   const [expandedContactId, setExpandedContactId] = useState<string | null>(null)
-  const [contactActionAnchor, setContactActionAnchor] = useState<HTMLElement | null>(null)
   const [expandedListId, setExpandedListId] = useState<string | null>(null)
-  const [listActionAnchor, setListActionAnchor] = useState<HTMLElement | null>(null)
 
   // Form states - List
   const [listName, setListName] = useState('')
@@ -872,9 +773,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
   const handleTabChange = (tab: ContactTab) => {
     setActiveTab(tab)
     setExpandedContactId(null)
-    setContactActionAnchor(null)
     setExpandedListId(null)
-    setListActionAnchor(null)
     const targetUrl = tab === 'lists' ? '/app/contacts/lists' : '/app/contacts'
     window.history.pushState(null, '', targetUrl)
   }
@@ -1276,9 +1175,9 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
       <div className="page-heading-row">
         <div>
           <div className="page-eyebrow">
-            METROMAIL WORKSPACE <span>/</span> CONTACTS
+            METROMAIL WORKSPACE <span>/</span> CONTACTS & CRM
           </div>
-          <h1>Contacts</h1>
+          <h1>Contacts & CRM</h1>
           <p>
             {activeTab === 'contacts'
               ? selectedListId && activeSelectedList
@@ -1348,7 +1247,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
           className={activeTab === 'lists' ? 'active' : ''}
           onClick={() => handleTabChange('lists')}
         >
-          Contact lists
+          List
         </button>
       </div>
 
@@ -1630,14 +1529,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                               aria-expanded={isExpanded}
                               onClick={(e) => {
                                 e.stopPropagation()
-                                const btn = e.currentTarget
-                                if (isExpanded) {
-                                  setExpandedContactId(null)
-                                  setContactActionAnchor(null)
-                                } else {
-                                  setExpandedContactId(contact.id)
-                                  setContactActionAnchor(btn)
-                                }
+                                setExpandedContactId(isExpanded ? null : contact.id)
                               }}
                               style={{
                                 display: 'inline-flex',
@@ -1656,53 +1548,69 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                             >
                               <MoreHorizontal size={17} />
                             </button>
-                            <ActionDropdownPortal
-                              anchorEl={contactActionAnchor}
-                              isOpen={isExpanded}
-                              onClose={() => {
-                                setExpandedContactId(null)
-                                setContactActionAnchor(null)
-                              }}
-                            >
-                              <RowActionMenuItem
-                                icon={Eye}
-                                label="View details"
-                                onClick={() => {
-                                  setViewContactDetails(contact)
-                                  setExpandedContactId(null)
-                                  setContactActionAnchor(null)
-                                }}
-                              />
-                              <RowActionMenuItem
-                                icon={Pencil}
-                                label="Edit contact"
-                                onClick={() => {
-                                  handleOpenEditContact(contact)
-                                  setExpandedContactId(null)
-                                  setContactActionAnchor(null)
-                                }}
-                              />
+                            {isExpanded && (
                               <div
-                                className="row-action-divider"
-                                role="separator"
+                                className={`row-action-menu ${isLastRow ? 'open-up' : ''}`}
+                                data-placement={isLastRow ? 'top' : 'bottom'}
+                                role="menu"
+                                aria-orientation="vertical"
+                                onClick={(e) => e.stopPropagation()}
                                 style={{
-                                  height: '1px',
-                                  margin: '4px 2px',
-                                  backgroundColor: '#e2e8f0',
-                                  border: 'none',
+                                  position: 'absolute',
+                                  zIndex: 9999,
+                                  top: isLastRow ? 'auto' : 'calc(100% - 2px)',
+                                  bottom: isLastRow ? 'calc(100% - 2px)' : 'auto',
+                                  right: '6px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  minWidth: '175px',
+                                  width: 'max-content',
+                                  padding: '6px',
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '9px',
+                                  backgroundColor: '#ffffff',
+                                  boxShadow:
+                                    '0 12px 30px -4px rgba(15, 23, 42, 0.22), 0 6px 14px -3px rgba(15, 23, 42, 0.12)',
+                                  transformOrigin: isLastRow ? 'bottom right' : 'top right',
                                 }}
-                              />
-                              <RowActionMenuItem
-                                icon={Trash2}
-                                label="Delete"
-                                isDanger
-                                onClick={() => {
-                                  setDeleteContactTarget(contact)
-                                  setExpandedContactId(null)
-                                  setContactActionAnchor(null)
-                                }}
-                              />
-                            </ActionDropdownPortal>
+                              >
+                                <RowActionMenuItem
+                                  icon={Eye}
+                                  label="View details"
+                                  onClick={() => {
+                                    setViewContactDetails(contact)
+                                    setExpandedContactId(null)
+                                  }}
+                                />
+                                <RowActionMenuItem
+                                  icon={Pencil}
+                                  label="Edit contact"
+                                  onClick={() => {
+                                    handleOpenEditContact(contact)
+                                    setExpandedContactId(null)
+                                  }}
+                                />
+                                <div
+                                  className="row-action-divider"
+                                  role="separator"
+                                  style={{
+                                    height: '1px',
+                                    margin: '4px 2px',
+                                    backgroundColor: '#e2e8f0',
+                                    border: 'none',
+                                  }}
+                                />
+                                <RowActionMenuItem
+                                  icon={Trash2}
+                                  label="Delete"
+                                  isDanger
+                                  onClick={() => {
+                                    setDeleteContactTarget(contact)
+                                    setExpandedContactId(null)
+                                  }}
+                                />
+                              </div>
+                            )}
                           </td>
                         </tr>
                       )
@@ -1937,14 +1845,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                             aria-expanded={isExpanded}
                             onClick={(e) => {
                               e.stopPropagation()
-                              const btn = e.currentTarget
-                              if (isExpanded) {
-                                setExpandedListId(null)
-                                setListActionAnchor(null)
-                              } else {
-                                setExpandedListId(list.id)
-                                setListActionAnchor(btn)
-                              }
+                              setExpandedListId(isExpanded ? null : list.id)
                             }}
                             style={{
                               display: 'inline-flex',
@@ -1963,53 +1864,69 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                           >
                             <MoreHorizontal size={17} />
                           </button>
-                          <ActionDropdownPortal
-                            anchorEl={listActionAnchor}
-                            isOpen={isExpanded}
-                            onClose={() => {
-                              setExpandedListId(null)
-                              setListActionAnchor(null)
-                            }}
-                          >
-                            <RowActionMenuItem
-                              icon={Users}
-                              label="View contacts"
-                              onClick={() => {
-                                handleSelectSpecificList(list)
-                                setExpandedListId(null)
-                                setListActionAnchor(null)
-                              }}
-                            />
-                            <RowActionMenuItem
-                              icon={Pencil}
-                              label="Edit list"
-                              onClick={() => {
-                                handleOpenEditList(list)
-                                setExpandedListId(null)
-                                setListActionAnchor(null)
-                              }}
-                            />
+                          {isExpanded && (
                             <div
-                              className="row-action-divider"
-                              role="separator"
+                              className={`row-action-menu ${isLastRow ? 'open-up' : ''}`}
+                              data-placement={isLastRow ? 'top' : 'bottom'}
+                              role="menu"
+                              aria-orientation="vertical"
+                              onClick={(e) => e.stopPropagation()}
                               style={{
-                                height: '1px',
-                                margin: '4px 2px',
-                                backgroundColor: '#e2e8f0',
-                                border: 'none',
+                                position: 'absolute',
+                                zIndex: 9999,
+                                top: isLastRow ? 'auto' : 'calc(100% - 2px)',
+                                bottom: isLastRow ? 'calc(100% - 2px)' : 'auto',
+                                right: '6px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                minWidth: '175px',
+                                width: 'max-content',
+                                padding: '6px',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '9px',
+                                backgroundColor: '#ffffff',
+                                boxShadow:
+                                  '0 12px 30px -4px rgba(15, 23, 42, 0.22), 0 6px 14px -3px rgba(15, 23, 42, 0.12)',
+                                transformOrigin: isLastRow ? 'bottom right' : 'top right',
                               }}
-                            />
-                            <RowActionMenuItem
-                              icon={Trash2}
-                              label="Delete"
-                              isDanger
-                              onClick={() => {
-                                setDeleteListTarget(list)
-                                setExpandedListId(null)
-                                setListActionAnchor(null)
-                              }}
-                            />
-                          </ActionDropdownPortal>
+                            >
+                              <RowActionMenuItem
+                                icon={Users}
+                                label="View contacts"
+                                onClick={() => {
+                                  handleSelectSpecificList(list)
+                                  setExpandedListId(null)
+                                }}
+                              />
+                              <RowActionMenuItem
+                                icon={Pencil}
+                                label="Edit list"
+                                onClick={() => {
+                                  handleOpenEditList(list)
+                                  setExpandedListId(null)
+                                }}
+                              />
+                              <div
+                                className="row-action-divider"
+                                role="separator"
+                                style={{
+                                  height: '1px',
+                                  margin: '4px 2px',
+                                  backgroundColor: '#e2e8f0',
+                                  border: 'none',
+                                }}
+                              />
+                              <RowActionMenuItem
+                                icon={Trash2}
+                                label="Delete"
+                                isDanger
+                                onClick={() => {
+                                  setDeleteListTarget(list)
+                                  setExpandedListId(null)
+                                }}
+                              />
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )
@@ -2323,11 +2240,11 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
           }}
         >
           <section
-            className="action-dialog"
+            className="action-dialog action-dialog-sm"
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-list-title"
-            style={{ width: 'min(440px, 100%)', position: 'relative' }}
+            style={{ width: 'min(420px, 100%)', position: 'relative' }}
           >
             <button
               type="button"
@@ -2652,11 +2569,11 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
           }}
         >
           <section
-            className="action-dialog"
+            className="action-dialog action-dialog-lg"
             role="dialog"
             aria-modal="true"
             aria-labelledby="contact-details-title"
-            style={{ width: 'min(520px, 100%)', position: 'relative' }}
+            style={{ width: 'min(530px, 100%)', position: 'relative' }}
           >
             <button
               type="button"
@@ -2845,11 +2762,11 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
           }}
         >
           <section
-            className="action-dialog"
+            className="action-dialog action-dialog-sm"
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-contact-title"
-            style={{ width: 'min(440px, 100%)', position: 'relative' }}
+            style={{ width: 'min(420px, 100%)', position: 'relative' }}
           >
             <button
               type="button"
