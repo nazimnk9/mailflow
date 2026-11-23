@@ -1175,9 +1175,9 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
       <div className="page-heading-row">
         <div>
           <div className="page-eyebrow">
-            METROMAIL WORKSPACE <span>/</span> CONTACTS & CRM
+            METROMAIL WORKSPACE <span>/</span> CONTACTS
           </div>
-          <h1>Contacts & CRM</h1>
+          <h1>Contacts</h1>
           <p>
             {activeTab === 'contacts'
               ? selectedListId && activeSelectedList
