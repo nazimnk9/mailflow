@@ -1,7 +1,13 @@
 'use client'
 
-export function StatusBadge({ status }: { status: string }) {
-  const lower = (status || '').toLowerCase()
+export function StatusBadge({ status }: { status: string | unknown }) {
+  const safeStatus =
+    typeof status === 'string' && status.trim()
+      ? status
+      : typeof status === 'number'
+      ? String(status)
+      : 'subscribed'
+  const lower = safeStatus.toLowerCase()
   const tone =
     lower.includes('verified') ||
     lower.includes('delivered') ||
@@ -28,7 +34,7 @@ export function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`status-badge ${tone}`}>
       <i />
-      {status}
+      {safeStatus}
     </span>
   )
 }

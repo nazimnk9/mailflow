@@ -51,7 +51,17 @@ function ExtraSectionTabs({ route }: { route: string }) {
   const tabs: [string, string][] = route.startsWith('campaigns')
     ? [['All campaigns', 'campaigns'], ['Drafts', 'campaigns/drafts'], ['Scheduled', 'campaigns/scheduled'], ['Sent', 'campaigns/sent'], ['A/B tests', 'campaigns/ab-tests'], ['Calendar', 'campaigns/calendar'], ['Templates', 'campaigns/templates']]
     : route.startsWith('contacts')
-      ? [['All contacts', 'contacts'], ['Lists', 'contacts/lists'], ['Segments', 'contacts/segments'], ['Tags', 'contacts/tags'], ['Signup forms', 'contacts/forms'], ['Attributes', 'contacts/attributes'], ['Unsubscribed', 'contacts/unsubscribed'], ['Blocklisted', 'contacts/blocklisted'], ['Preferences', 'contacts/preferences']]
+      ? [
+          ['All contacts', 'contacts'],
+          ['Contact lists', 'contacts/lists'],
+          // ['Segments', 'contacts/segments'],
+          // ['Tags', 'contacts/tags'],
+          // ['Signup forms', 'contacts/forms'],
+          // ['Attributes', 'contacts/attributes'],
+          // ['Unsubscribed', 'contacts/unsubscribed'],
+          // ['Blocklisted', 'contacts/blocklisted'],
+          // ['Preferences', 'contacts/preferences'],
+        ]
       : route.startsWith('api-keys')
         ? [['API keys', 'api-keys'], ['SMTP', 'api-keys/smtp'], ['API docs', 'api-keys/docs'], ['Requests', 'api-keys/requests'], ['Webhooks', 'webhooks'], ['Deliveries', 'webhooks/deliveries']]
         : route.startsWith('webhooks')
@@ -169,7 +179,7 @@ function ContactTagsPage({ onAction }: { onAction: (message: string) => void }) 
     onAction(`Tag “${name}” created.`)
   }
   return <div className="extra-page">
-    <PageHeading eyebrow="CONTACTS & CRM / ORGANIZATION" title="Contact tags" description="Label contacts with useful context your team can act on.">
+    <PageHeading eyebrow="CONTACTS / ORGANIZATION" title="Contact tags" description="Label contacts with useful context your team can act on.">
       <Link className="button button-secondary" href="/app/contacts/preferences">Subscription preferences <ArrowRight size={14} /></Link>
     </PageHeading>
     <Panel title="Create a tag" description="Tags help you organize contacts across lists and segments.">
@@ -193,7 +203,7 @@ function ContactPreferencesPage({ onAction }: { onAction: (message: string) => v
     ['research', 'Research and surveys', 'Occasional requests to help improve the product.'],
   ] as const
   return <div className="extra-page">
-    <PageHeading eyebrow="CONTACTS & CRM / PREFERENCES" title="Subscription preferences" description="Control which marketing topics your audience can choose to receive.">
+    <PageHeading eyebrow="CONTACTS / PREFERENCES" title="Subscription preferences" description="Control which marketing topics your audience can choose to receive.">
       <button className="button button-primary" onClick={save}>{saved ? <Check size={14} /> : null}{saved ? 'Saved' : 'Save preferences'}</button>
     </PageHeading>
     <div className="extra-preference-layout"><Panel title="Preference center" description="These settings are shown to contacts when they manage their subscription.">{categories.map(([key, label, description]) => <label className="extra-preference-row" key={key}><span><b>{label}</b><small>{description}</small></span><input type="checkbox" checked={preferences[key]} onChange={() => update(key)} aria-label={`Enable ${label}`} /></label>)}</Panel><aside className="extra-preference-aside"><span><Users size={17} /></span><b>Give people control</b><p>Preference options help keep your list relevant and make it easy for subscribers to choose what they hear about.</p><button className="text-link" onClick={() => onAction('Subscription preference form preview opened.')}>Preview preference center <ArrowRight size={13} /></button></aside></div>

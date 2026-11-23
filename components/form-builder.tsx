@@ -66,7 +66,7 @@ export function FormBuilderView({ onAction = () => {} }: { onAction?: (message: 
       {/* Page Heading */}
       <div className="page-heading-row">
         <div>
-          <div className="page-eyebrow">CONTACTS & CRM / SIGNUP FORMS</div>
+          <div className="page-eyebrow">CONTACTS / SIGNUP FORMS</div>
           <h1>Interactive Form Builder</h1>
           <p>Create high-converting embedded forms, popups, and floating subscription bars for your site.</p>
         </div>
