@@ -31,7 +31,7 @@ export const dashboardNav: NavGroup[] = [
     // { label: 'Email Validator', href: '/app/verify', icon: 'CheckCheck' },
     // { label: 'Inbox Placement', href: '/app/inbox-placement', icon: 'Inbox' },
     // { label: 'Inbound Routes', href: '/app/inbound-routes', icon: 'Route' },
-    // { label: 'SMTP & API', href: '/app/api-keys', icon: 'Braces' },
+    { label: 'SMTP & API', href: '/app/api-keys', icon: 'Braces' },
     { label: 'Email logs', href: '/app/logs', icon: 'ListFilter' },
   ] },
   // { label: 'Insights', items: [
