@@ -7332,6 +7332,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   border-left: none !important;
 }
 
+.sidebar-collapsed .sidebar-group-label-mini {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  color: #146ef5;
+}
+
 .sidebar-collapsed .sidebar-link-active::before {
   left: -9px !important;
 }

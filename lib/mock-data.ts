@@ -11,15 +11,15 @@ export type NavItem = { label: string; href: string; icon: string }
 export type NavGroup = { label: string; icon?: string; items: NavItem[] }
 
 export const dashboardNav: NavGroup[] = [
-  // { label: 'Workspace', items: [
-  //   { label: 'Overview', href: '/app/overview', icon: 'LayoutDashboard' },
+  { label: 'Workspace', icon: 'LayoutDashboard', items: [
+    { label: 'Overview', href: '/app/overview', icon: 'LayoutDashboard' },
   //   { label: 'Campaigns', href: '/app/campaigns', icon: 'Send' },
   //   { label: 'SMS & WhatsApp', href: '/app/campaigns/sms', icon: 'Smartphone' },
   //   { label: 'Contacts & CRM', href: '/app/contacts', icon: 'ContactRound' },
   //   { label: 'Sales Deals', href: '/app/deals', icon: 'Kanban' },
   //   { label: 'Automations', href: '/app/automations', icon: 'Workflow' },
   //   { label: 'Form Builder', href: '/app/forms', icon: 'Sliders' },
-  // ] },
+  ] },
   { label: 'Deliverability', icon: 'Send', items: [
     { label: 'Domains', href: '/app/domains', icon: 'Globe2' },
     { label: 'Suppressions', href: '/app/suppressions', icon: 'ShieldBan' },
@@ -33,6 +33,14 @@ export const dashboardNav: NavGroup[] = [
     // { label: 'Inbound Routes', href: '/app/inbound-routes', icon: 'Route' },
     { label: 'SMTP & API', href: '/app/api-keys', icon: 'Braces' },
     { label: 'Email logs', href: '/app/logs', icon: 'ListFilter' },
+  ] },
+   { label: 'Marketing', icon: 'Sparkles', items: [
+    { label: 'Campaigns', href: '/app/campaigns', icon: 'Send' },
+    // { label: 'SMS & WhatsApp', href: '/app/campaigns/sms', icon: 'Smartphone' },
+    { label: 'Contacts', href: '/app/contacts', icon: 'ContactRound' },
+    // { label: 'Sales Deals', href: '/app/deals', icon: 'Kanban' },
+    // { label: 'Automations', href: '/app/automations', icon: 'Workflow' },
+    // { label: 'Form Builder', href: '/app/forms', icon: 'Sliders' },
   ] },
   // { label: 'Insights', items: [
   //   { label: 'Analytics', href: '/app/analytics', icon: 'ChartNoAxesCombined' },

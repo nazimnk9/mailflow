@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Activity, Bell, Blocks, Braces, ChartNoAxesCombined, CheckCheck, ChevronDown, CircleHelp, ContactRound, CreditCard, Globe2, Inbox, Kanban, LayoutDashboard, LifeBuoy, ListFilter, LogOut, MailCheck, Menu, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Route, Search, Send, Settings2, ShieldBan, Sliders, Smartphone, Sparkles, UserCircle2, Workflow, X } from 'lucide-react'
+import { Activity, Bell, Blocks, Braces, ChartNoAxesCombined, CheckCheck, ChevronDown, CircleHelp, ContactRound, CreditCard, Globe2, Inbox, Kanban, LayoutDashboard, LifeBuoy, ListFilter, LogOut, MailCheck, Menu, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Route, Search, Send, Settings2, ShieldBan, Sliders, Smartphone, Sparkles, UserCircle2, Users, Webhook, Workflow, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/brand-mark'
 import { dashboardNav, type MockRow } from '@/lib/mock-data'
@@ -13,7 +13,7 @@ import { createContact, issueApiKey, verifySendingDomain } from '@/lib/services'
 import { DashboardContent } from '@/components/dashboard-content'
 import { authToken } from '@/lib/auth-token'
 
-const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
+const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
   LayoutDashboard,
   Send,
   ContactRound,
@@ -35,6 +35,9 @@ const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?:
   MessageSquare,
   Route,
   Sliders,
+  Sparkles,
+  Users,
+  Webhook,
 }
 const actionSchema = z.object({ name: z.string().optional(), email: z.string().optional(), domain: z.string().optional(), message: z.string().optional() })
 type ActionValues = z.infer<typeof actionSchema>
@@ -54,6 +57,13 @@ export function DashboardApp({ route }: { route: string }) {
   const [completed, setCompleted] = useState<string[]>(['profile'])
   const [customRows, setCustomRows] = useState<MockRow[]>([])
   const [dialogSuccess, setDialogSuccess] = useState(false)
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+  const toggleGroup = (label: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }))
+  }
   const searchInputRef = useRef<HTMLInputElement>(null)
   const dialogRef = useRef<HTMLElement>(null)
   const mobileCloseRef = useRef<HTMLButtonElement>(null)
@@ -248,7 +258,62 @@ export function DashboardApp({ route }: { route: string }) {
       </div>
       <div className="workspace-switch-wrap">
         <button className="workspace-switch" onClick={() => setWorkspaceOpen(!workspaceOpen)} aria-expanded={workspaceOpen}><span className="workspace-avatar">M</span><span className="workspace-details"><b>MetroVPS</b><small>Growth workspace</small></span><ChevronDown className="workspace-chevron" size={14} /></button>{workspaceOpen && <div className="workspace-menu"><b>Workspaces</b><button onClick={() => { setWorkspaceOpen(false); setNotice('You are already in the MetroVPS demo workspace.') }}><span className="workspace-avatar">M</span><span>MetroVPS <small>Current workspace</small></span></button><button onClick={() => { setWorkspaceOpen(false); setNotice('Workspace switching will connect to your backend.') }}><Plus size={15} /> Create workspace</button></div>}</div>
-      <div className="sidebar-scroll">{dashboardNav.map((group) => <div className="sidebar-group" key={group.label}><div className="sidebar-group-label">{group.label}</div>{group.items.map((item) => { const Icon = iconMap[item.icon] ?? LayoutDashboard; const active = normalizedPath === item.href || normalizedPath.startsWith(`${item.href}/`); return <Link key={item.href} className={`sidebar-link ${active ? 'sidebar-link-active' : ''}`} href={item.href} title={collapsed ? item.label : undefined} aria-label={collapsed ? item.label : undefined} aria-current={active ? 'page' : undefined} onClick={() => setMobileOpen(false)}><Icon size={17} strokeWidth={active ? 2.2 : 1.8} /><span>{item.label}</span>{item.label === 'Email logs' && <i className="sidebar-live-dot" />}</Link> })}</div>)}</div>
+      <div className="sidebar-scroll">
+        {dashboardNav.map((group) => {
+          const isGroupCollapsed = Boolean(collapsedGroups[group.label])
+          const GroupIcon = group.icon ? (iconMap[group.icon] ?? Send) : null
+          return (
+            <div className="sidebar-group" key={group.label}>
+              {!collapsed ? (
+                <button
+                  type="button"
+                  className="sidebar-group-header-btn"
+                  onClick={() => toggleGroup(group.label)}
+                  aria-expanded={!isGroupCollapsed}
+                  title={`${isGroupCollapsed ? 'Expand' : 'Collapse'} ${group.label}`}
+                >
+                  <span className="sidebar-group-header-left">
+                    {GroupIcon && <GroupIcon size={16} className="sidebar-group-header-icon" />}
+                    <span className="sidebar-group-label">{group.label}</span>
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    className={`sidebar-group-chevron ${!isGroupCollapsed ? 'sidebar-group-chevron-open' : ''}`}
+                  />
+                </button>
+              ) : (
+                <div className="sidebar-group-label sidebar-group-label-mini" title={group.label}>
+                  {GroupIcon && <GroupIcon size={16} />}
+                </div>
+              )}
+
+              {(!isGroupCollapsed || collapsed) && (
+                <div className="sidebar-group-items">
+                  {group.items.map((item) => {
+                    const Icon = iconMap[item.icon] ?? LayoutDashboard
+                    const active = normalizedPath === item.href || normalizedPath.startsWith(`${item.href}/`)
+                    return (
+                      <Link
+                        key={item.href}
+                        className={`sidebar-link ${active ? 'sidebar-link-active' : ''}`}
+                        href={item.href}
+                        title={collapsed ? item.label : undefined}
+                        aria-label={collapsed ? item.label : undefined}
+                        aria-current={active ? 'page' : undefined}
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
+                        <span>{item.label}</span>
+                        {item.label === 'Email logs' && <i className="sidebar-live-dot" />}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
       <div className="sidebar-bottom">
         {/* <div className="usage-mini"><div className="usage-mini-top"><span>Monthly usage</span><b>64%</b></div><div className="usage-track"><i /></div><small>32,000 of 50,000 emails</small><Link href="/app/billing">View usage <span>→</span></Link></div><Link className="sidebar-help-link" href="/app/support"><LifeBuoy size={16} /><span>Help & support</span><span className="help-shortcut">?</span></Link> */}
         <button className="sidebar-user" onClick={() => setProfileOpen(!profileOpen)}><span className="user-avatar">AM</span><span className="sidebar-user-name"><b>Alex Morgan</b><small>Owner</small></span><ChevronDown size={14} /></button></div>
