@@ -13,6 +13,7 @@ export interface MailAttachment {
   filename: string
   content_type: string
   size: number
+  content?: string
 }
 
 export interface MailItem {
@@ -46,7 +47,7 @@ export interface SendMailPayload {
   text?: string
   html?: string
   headers?: Record<string, string>
-  attachments?: string[]
+  attachments?: MailAttachment[] | string[]
   node?: 'node-158' | 'node-253' | string
 }
 
@@ -57,8 +58,24 @@ export interface SendMailResponse {
   errors?: string
 }
 
+export interface MailsPaginatedData {
+  items: MailItem[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export interface GetMailsParams {
+  page?: number
+  page_size?: number
+  search?: string
+  status?: string
+  node?: string
+}
+
 export interface GetMailsResponse {
-  data: MailItem[]
+  data: MailsPaginatedData | MailItem[]
   success: boolean
   message: string
   errors?: string
@@ -74,12 +91,14 @@ export interface GetMailByIdResponse {
 export const mailsApi = {
   /**
    * Send a transactional email message
-   * POST /mails
+   * POST /mails/send
    */
-  sendMail(payload: SendMailPayload): Promise<SendMailResponse> {
-    return apiClient<SendMailResponse>('/mails', {
+  sendMail(payload: SendMailPayload | FormData): Promise<SendMailResponse> {
+    const isFormData =
+      typeof FormData !== 'undefined' && payload instanceof FormData
+    return apiClient<SendMailResponse>('/mails/send', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: isFormData ? payload : JSON.stringify(payload),
     })
   },
 
@@ -87,9 +106,10 @@ export const mailsApi = {
    * Fetch all sent email logs
    * GET /mails
    */
-  getMails(): Promise<GetMailsResponse> {
+  getMails(params?: GetMailsParams): Promise<GetMailsResponse> {
     return apiClient<GetMailsResponse>('/mails', {
       method: 'GET',
+      params: params as Record<string, string | number | boolean | undefined>,
     })
   },
 

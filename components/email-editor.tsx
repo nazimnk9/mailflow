@@ -48,6 +48,7 @@ type EmailEditorProps = {
   initialHtml?: string
   initialPlainText?: string
   subject?: string
+  startEmpty?: boolean
   onChange?: (content: { html: string; text: string }) => void
 }
 
@@ -79,13 +80,29 @@ export function EmailEditor({
   initialHtml,
   initialPlainText,
   subject = 'A few things we’ve been working on',
+  startEmpty = false,
   onChange,
 }: EmailEditorProps) {
   // Current active template
   const defaultTemplate = EMAIL_TEMPLATES[0]
-  const [currentTemplateId, setCurrentTemplateId] = useState(defaultTemplate.id)
-  const [htmlContent, setHtmlContent] = useState(initialHtml || defaultTemplate.html)
-  const [plainTextContent, setPlainTextContent] = useState(initialPlainText || defaultTemplate.plainText)
+  const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(() => {
+    if (initialHtml) {
+      const match = EMAIL_TEMPLATES.find((t) => t.html === initialHtml)
+      return match ? match.id : null
+    }
+    if (startEmpty) return null
+    return defaultTemplate.id
+  })
+  const [htmlContent, setHtmlContent] = useState<string>(() => {
+    if (initialHtml !== undefined) return initialHtml
+    if (startEmpty) return ''
+    return defaultTemplate.html
+  })
+  const [plainTextContent, setPlainTextContent] = useState<string>(() => {
+    if (initialPlainText !== undefined) return initialPlainText
+    if (startEmpty) return ''
+    return defaultTemplate.plainText
+  })
 
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -286,7 +303,7 @@ export function EmailEditor({
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `email-template-${currentTemplateId}.html`
+    anchor.download = `email-template-${currentTemplateId || 'custom'}.html`
     document.body.appendChild(anchor)
     anchor.click()
     document.body.removeChild(anchor)
@@ -328,7 +345,9 @@ export function EmailEditor({
     return matchesCat && matchesSearch
   })
 
-  const currentTemplate = EMAIL_TEMPLATES.find((t) => t.id === currentTemplateId) || defaultTemplate
+  const currentTemplate = currentTemplateId
+    ? EMAIL_TEMPLATES.find((t) => t.id === currentTemplateId) || null
+    : null
 
   return (
     <div className={`email-builder-wrapper ${isFullScreen ? 'is-fullscreen-editor' : ''}`}>
@@ -343,10 +362,10 @@ export function EmailEditor({
           >
             <Sparkles size={14} className="text-amber-500" />
             <span className="template-label">Template:</span>
-            <strong>{currentTemplate.name}</strong>
+            <strong>{currentTemplate ? currentTemplate.name : 'Choose template'}</strong>
             <ChevronDown size={14} />
           </button>
-          <span className="builder-header-badge">{currentTemplate.category}</span>
+          {currentTemplate && <span className="builder-header-badge">{currentTemplate.category}</span>}
         </div>
 
         {/* Central Mode Switcher */}
@@ -875,6 +894,7 @@ export function EmailEditor({
                 contentEditable
                 suppressContentEditableWarning
                 onInput={handleVisualInput}
+                data-placeholder="Click here and start typing your email content, or pick a template above..."
                 aria-label="Email Template Visual Editor"
               />
             </div>
@@ -967,7 +987,7 @@ export function EmailEditor({
               </div>
               <div className="envelope-row">
                 <span className="envelope-label">Preheader:</span>
-                <span className="envelope-preheader">{currentTemplate.preheader}</span>
+                <span className="envelope-preheader">{currentTemplate?.preheader || '—'}</span>
               </div>
             </div>
 
@@ -1014,7 +1034,6 @@ export function EmailEditor({
           <div
             className="action-dialog template-gallery-dialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ width: 'min(920px, 95vw)', maxHeight: '90vh' }}
           >
             <button
               type="button"
@@ -1121,7 +1140,6 @@ export function EmailEditor({
           <div
             className="action-dialog preview-fullscreen-dialog"
             onClick={(e) => e.stopPropagation()}
-            style={{ width: 'min(820px, 95vw)', height: '90vh', display: 'flex', flexDirection: 'column' }}
           >
             <div className="dialog-top-bar flex justify-between items-center pb-3 border-b border-slate-100">
               <div>

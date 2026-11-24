@@ -226,9 +226,18 @@ export async function apiClient<T>(
     }
   }
 
+  const isFormData = Boolean(
+    customConfig.body &&
+      typeof customConfig.body === 'object' &&
+      typeof (customConfig.body as any).append === 'function'
+  )
+
   const defaultHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
     Accept: 'application/json',
+  }
+
+  if (!isFormData) {
+    ;(defaultHeaders as Record<string, string>)['Content-Type'] = 'application/json'
   }
 
   // Include direct token if available in fallback or non-HttpOnly context
@@ -318,10 +327,15 @@ export async function apiClient<T>(
 
     return json as T
   } catch (error) {
-    if (error instanceof ApiError) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      (error instanceof ApiError || (error as any).name === 'ApiError')
+    ) {
       throw error
     }
-    const message = error instanceof Error ? error.message : 'A network error occurred'
+    const message =
+      error instanceof Error ? error.message : typeof error === 'string' ? error : 'A network error occurred'
     throw new ApiError(message, 0)
   }
 }

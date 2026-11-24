@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -17,11 +17,21 @@ import {
   Clock,
   XCircle,
   Loader2,
+  Eye,
+  Download,
 } from 'lucide-react'
 import { StatusBadge } from '@/components/status-badge'
+import {
+  AttachmentPreviewModal,
+  type PreviewableAttachment,
+  getFileCategory,
+  getAttachmentTypeIcon,
+  formatBytes,
+} from '@/components/attachment-preview-modal'
 import { useMailByIdQuery, useMailsQuery } from '@/lib/hooks/use-mails-query'
 import { formatApiErrorMessage } from '@/lib/api-client'
-import type { MailEvent, MailAttachment } from '@/lib/api/mails'
+import type { MailEvent, MailAttachment, MailItem } from '@/lib/api/mails'
+import { ensureArray } from '@/lib/utils'
 
 export function MessageDetailPage({
   route,
@@ -34,12 +44,17 @@ export function MessageDetailPage({
 }) {
   const mailId = initialMailId || route.split('/').at(-1) || ''
   const { data: allMailsRes } = useMailsQuery()
-  const cachedMail = allMailsRes?.data?.find((m) => m.id === mailId)
+  const cachedMail = useMemo(() => {
+    const list = ensureArray<MailItem>(allMailsRes?.data ?? allMailsRes)
+    return list.find((m) => m && m.id === mailId)
+  }, [allMailsRes, mailId])
   const { data: response, isLoading, isError, error } = useMailByIdQuery(mailId)
   const mail = response?.data || cachedMail
 
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<'html' | 'text' | 'headers'>('html')
+  const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  const [previewIndex, setPreviewIndex] = useState(0)
 
   const copyId = () => {
     if (!mailId) return
@@ -80,9 +95,26 @@ export function MessageDetailPage({
   const bccDisplay = Array.isArray(mail.bcc) ? mail.bcc.join(', ') : mail.bcc
 
   const events: MailEvent[] = mail.events ?? []
-  const attachments: MailAttachment[] = (Array.isArray(mail.attachments)
-    ? mail.attachments.filter((a): a is MailAttachment => typeof a === 'object' && a !== null)
-    : [])
+  const attachments: MailAttachment[] = Array.isArray(mail.attachments)
+    ? (mail.attachments as Array<MailAttachment | string>).filter(
+        (a: MailAttachment | string): a is MailAttachment => typeof a === 'object' && a !== null
+      )
+    : []
+
+  const previewableAttachments: PreviewableAttachment[] = useMemo(() => {
+    return attachments.map((att, idx) => ({
+      filename: att.filename || `attachment-${idx + 1}`,
+      content_type: att.content_type || 'application/octet-stream',
+      size: typeof att.size === 'number' ? att.size : 0,
+      content: att.content,
+      url: (att as unknown as { url?: string }).url,
+    }))
+  }, [attachments])
+
+  const openPreviewAtIndex = (idx: number) => {
+    setPreviewIndex(idx)
+    setPreviewModalOpen(true)
+  }
 
   return (
     <>
@@ -185,18 +217,84 @@ export function MessageDetailPage({
             </div>
           )}
 
-          {/* Attachments list if any */}
+          {/* Attachments preview list */}
           {attachments.length > 0 && (
             <div className="message-attachments-box">
-              <small>ATTACHMENTS ({attachments.length})</small>
-              <div className="attachment-pills">
-                {attachments.map((att, idx) => (
-                  <span key={idx} className="attachment-pill">
-                    <Paperclip size={12} />
-                    <span>{att.filename}</span>
-                    <small>({(att.size / 1024).toFixed(1)} KB)</small>
-                  </span>
-                ))}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <small style={{ fontWeight: 700, letterSpacing: '0.08em', color: '#64748b' }}>
+                  ATTACHMENTS ({attachments.length})
+                </small>
+                <button
+                  type="button"
+                  className="banner-attachment-preview-btn"
+                  onClick={() => openPreviewAtIndex(0)}
+                >
+                  <Eye size={12} />
+                  <span>Preview all</span>
+                </button>
+              </div>
+
+              <div className="message-detail-attachment-grid">
+                {previewableAttachments.map((att, idx) => {
+                  const cat = getFileCategory(att.content_type, att.filename)
+                  const hasImageThumb = cat === 'image' && (att.url || att.content)
+                  const thumbSrc =
+                    att.url ||
+                    (att.content?.startsWith('data:')
+                      ? att.content
+                      : att.content
+                      ? `data:${att.content_type};base64,${att.content}`
+                      : '')
+
+                  return (
+                    <div
+                      key={idx}
+                      className="msg-attachment-card"
+                      onClick={() => openPreviewAtIndex(idx)}
+                      title={`Click to preview ${att.filename}`}
+                    >
+                      <div className="msg-attachment-icon">
+                        {hasImageThumb && thumbSrc ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={thumbSrc}
+                            alt={att.filename}
+                            className="msg-attachment-thumb"
+                          />
+                        ) : (
+                          getAttachmentTypeIcon(cat, 18)
+                        )}
+                      </div>
+
+                      <div className="msg-attachment-info">
+                        <span className="msg-attachment-name" title={att.filename}>
+                          {att.filename}
+                        </span>
+                        <div className="msg-attachment-meta">
+                          <span>{formatBytes(att.size)}</span>
+                          <span>•</span>
+                          <span style={{ textTransform: 'uppercase', fontSize: '10.5px', fontWeight: 600 }}>
+                            {cat}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="msg-attachment-actions" style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className="msg-attachment-action-btn"
+                          title="Preview"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openPreviewAtIndex(idx)
+                          }}
+                        >
+                          <Eye size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -306,6 +404,15 @@ export function MessageDetailPage({
           </div>
         </section>
       </div>
+
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        isOpen={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        attachments={previewableAttachments}
+        initialIndex={previewIndex}
+        emailSubject={mail.subject || 'Email Attachments'}
+      />
     </>
   )
 }

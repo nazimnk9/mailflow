@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   mailsApi,
   type GetMailByIdResponse,
+  type GetMailsParams,
   type GetMailsResponse,
   type SendMailPayload,
   type SendMailResponse,
@@ -15,10 +16,10 @@ export const MAILS_QUERY_KEY = ['mails']
 /**
  * Hook to fetch all email messages/logs
  */
-export function useMailsQuery() {
+export function useMailsQuery(params?: GetMailsParams) {
   return useQuery<GetMailsResponse, ApiError>({
-    queryKey: MAILS_QUERY_KEY,
-    queryFn: () => mailsApi.getMails(),
+    queryKey: params ? [...MAILS_QUERY_KEY, params] : MAILS_QUERY_KEY,
+    queryFn: () => mailsApi.getMails(params),
     staleTime: 30 * 1000, // 30 seconds
   })
 }
@@ -43,8 +44,8 @@ export function useMailByIdQuery(mailId?: string | null) {
 export function useSendMailMutation() {
   const queryClient = useQueryClient()
 
-  return useMutation<SendMailResponse, ApiError, SendMailPayload>({
-    mutationFn: (payload: SendMailPayload) => mailsApi.sendMail(payload),
+  return useMutation<SendMailResponse, ApiError, SendMailPayload | FormData>({
+    mutationFn: (payload: SendMailPayload | FormData) => mailsApi.sendMail(payload),
     onSuccess: () => {
       // Invalidate email logs so the new message immediately appears in logs
       queryClient.invalidateQueries({ queryKey: MAILS_QUERY_KEY })

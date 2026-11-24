@@ -20,8 +20,14 @@ async function handleProxyRequest(
     const headers = new Headers(request.headers)
     headers.delete('host')
     headers.delete('cookie')
+    headers.delete('content-length')
+    headers.delete('connection')
+
+    const clientAuth = request.headers.get('authorization')
     if (token) {
       headers.set('Authorization', `Bearer ${token}`)
+    } else if (clientAuth) {
+      headers.set('Authorization', clientAuth)
     }
 
     const init: RequestInit = {
@@ -57,6 +63,9 @@ async function handleProxyRequest(
       console.log(
         `[PROXY] ${request.method} /api/proxy/${endpointPath} -> ${backendUrl} [${backendRes.status}] (${duration}ms)`
       )
+      if (backendRes.status >= 400) {
+        console.warn(`[PROXY BACKEND ERROR] ${request.method} /${endpointPath}:`, data)
+      }
     }
 
     const responseHeaders: Record<string, string> = {}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import {
   AlertCircle,
@@ -87,6 +88,108 @@ function ensureArray<T>(data: unknown): T[] {
     }
   }
   return []
+}
+
+interface FloatingRowActionMenuProps {
+  isOpen: boolean
+  anchorRect: DOMRect | null
+  onClose: () => void
+  children: React.ReactNode
+}
+
+function FloatingRowActionMenu({
+  isOpen,
+  anchorRect,
+  onClose,
+  children,
+}: FloatingRowActionMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (menuRef.current && target && !menuRef.current.contains(target)) {
+        if (target.closest('.row-action-trigger')) {
+          return
+        }
+        onClose()
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    const handleScrollOrResize = () => {
+      onClose()
+    }
+
+    document.addEventListener('mousedown', handleMouseDown)
+    document.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('scroll', handleScrollOrResize, true)
+    window.addEventListener('resize', handleScrollOrResize)
+
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown)
+      document.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('scroll', handleScrollOrResize, true)
+      window.removeEventListener('resize', handleScrollOrResize)
+    }
+  }, [isOpen, onClose])
+
+  if (!mounted || !isOpen || !anchorRect || typeof document === 'undefined') {
+    return null
+  }
+
+  const spaceBelow = window.innerHeight - anchorRect.bottom
+  const spaceAbove = anchorRect.top
+  const openUp = spaceBelow < 170 && spaceAbove > spaceBelow
+
+  const top = openUp ? undefined : Math.max(8, anchorRect.bottom + 4)
+  const bottom = openUp ? Math.max(8, window.innerHeight - anchorRect.top + 4) : undefined
+  const right = Math.max(8, window.innerWidth - anchorRect.right)
+
+  return createPortal(
+    <div
+      ref={menuRef}
+      className={`row-action-menu floating-portal ${openUp ? 'open-up' : ''}`}
+      data-placement={openUp ? 'top' : 'bottom'}
+      role="menu"
+      aria-orientation="vertical"
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: 'fixed',
+        zIndex: 999999,
+        top: top !== undefined ? `${top}px` : undefined,
+        bottom: bottom !== undefined ? `${bottom}px` : undefined,
+        right: `${right}px`,
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: '175px',
+        width: 'max-content',
+        padding: '6px',
+        border: '1px solid #e2e8f0',
+        borderRadius: '9px',
+        backgroundColor: '#ffffff',
+        boxShadow:
+          '0 12px 30px -4px rgba(15, 23, 42, 0.22), 0 6px 14px -3px rgba(15, 23, 42, 0.12)',
+        animation: 'fadeInRowMenu 0.12s ease-out',
+        transformOrigin: openUp ? 'bottom right' : 'top right',
+      }}
+    >
+      {children}
+    </div>,
+    document.body
+  )
 }
 
 function RowActionMenuItem({
@@ -737,6 +840,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
   // Dropdown row action open tracker
   const [expandedContactId, setExpandedContactId] = useState<string | null>(null)
   const [expandedListId, setExpandedListId] = useState<string | null>(null)
+  const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null)
 
   // Form states - List
   const [listName, setListName] = useState('')
@@ -774,6 +878,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
     setActiveTab(tab)
     setExpandedContactId(null)
     setExpandedListId(null)
+    setMenuAnchorRect(null)
     const targetUrl = tab === 'lists' ? '/app/contacts/lists' : '/app/contacts'
     window.history.pushState(null, '', targetUrl)
   }
@@ -791,12 +896,14 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
       }
       setExpandedContactId(null)
       setExpandedListId(null)
+      setMenuAnchorRect(null)
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setExpandedContactId(null)
         setExpandedListId(null)
+        setMenuAnchorRect(null)
       }
     }
 
@@ -936,11 +1043,13 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
   useEffect(() => {
     setContactsPagination((prev) => ({ ...prev, pageIndex: 0 }))
     setExpandedContactId(null)
+    setMenuAnchorRect(null)
   }, [selectedListId, contactSearch, selectedStatus])
 
   useEffect(() => {
     setListsPagination((prev) => ({ ...prev, pageIndex: 0 }))
     setExpandedListId(null)
+    setMenuAnchorRect(null)
   }, [listSearch])
 
   // Format date helper
@@ -1115,6 +1224,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
     setContactAttributes(contact.attributes || '')
     setContactFormError(null)
     setExpandedContactId(null)
+    setMenuAnchorRect(null)
   }
 
   const handleSubmitEditContact = async (e: React.FormEvent) => {
@@ -1518,7 +1628,6 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                             style={{
                               textAlign: 'right',
                               position: 'relative',
-                              zIndex: isExpanded ? 110 : 1,
                             }}
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -1529,7 +1638,15 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                               aria-expanded={isExpanded}
                               onClick={(e) => {
                                 e.stopPropagation()
-                                setExpandedContactId(isExpanded ? null : contact.id)
+                                if (isExpanded) {
+                                  setExpandedContactId(null)
+                                  setMenuAnchorRect(null)
+                                } else {
+                                  setExpandedListId(null)
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setMenuAnchorRect(rect)
+                                  setExpandedContactId(contact.id)
+                                }
                               }}
                               style={{
                                 display: 'inline-flex',
@@ -1549,29 +1666,12 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                               <MoreHorizontal size={17} />
                             </button>
                             {isExpanded && (
-                              <div
-                                className={`row-action-menu ${isLastRow ? 'open-up' : ''}`}
-                                data-placement={isLastRow ? 'top' : 'bottom'}
-                                role="menu"
-                                aria-orientation="vertical"
-                                onClick={(e) => e.stopPropagation()}
-                                style={{
-                                  position: 'absolute',
-                                  zIndex: 9999,
-                                  top: isLastRow ? 'auto' : 'calc(100% - 2px)',
-                                  bottom: isLastRow ? 'calc(100% - 2px)' : 'auto',
-                                  right: '6px',
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  minWidth: '175px',
-                                  width: 'max-content',
-                                  padding: '6px',
-                                  border: '1px solid #e2e8f0',
-                                  borderRadius: '9px',
-                                  backgroundColor: '#ffffff',
-                                  boxShadow:
-                                    '0 12px 30px -4px rgba(15, 23, 42, 0.22), 0 6px 14px -3px rgba(15, 23, 42, 0.12)',
-                                  transformOrigin: isLastRow ? 'bottom right' : 'top right',
+                              <FloatingRowActionMenu
+                                isOpen={true}
+                                anchorRect={menuAnchorRect}
+                                onClose={() => {
+                                  setExpandedContactId(null)
+                                  setMenuAnchorRect(null)
                                 }}
                               >
                                 <RowActionMenuItem
@@ -1580,6 +1680,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                                   onClick={() => {
                                     setViewContactDetails(contact)
                                     setExpandedContactId(null)
+                                    setMenuAnchorRect(null)
                                   }}
                                 />
                                 <RowActionMenuItem
@@ -1588,6 +1689,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                                   onClick={() => {
                                     handleOpenEditContact(contact)
                                     setExpandedContactId(null)
+                                    setMenuAnchorRect(null)
                                   }}
                                 />
                                 <div
@@ -1607,9 +1709,10 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                                   onClick={() => {
                                     setDeleteContactTarget(contact)
                                     setExpandedContactId(null)
+                                    setMenuAnchorRect(null)
                                   }}
                                 />
-                              </div>
+                              </FloatingRowActionMenu>
                             )}
                           </td>
                         </tr>
@@ -1834,7 +1937,6 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                           style={{
                             textAlign: 'right',
                             position: 'relative',
-                            zIndex: isExpanded ? 110 : 1,
                           }}
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -1845,7 +1947,15 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                             aria-expanded={isExpanded}
                             onClick={(e) => {
                               e.stopPropagation()
-                              setExpandedListId(isExpanded ? null : list.id)
+                              if (isExpanded) {
+                                setExpandedListId(null)
+                                setMenuAnchorRect(null)
+                              } else {
+                                setExpandedContactId(null)
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setMenuAnchorRect(rect)
+                                setExpandedListId(list.id)
+                              }
                             }}
                             style={{
                               display: 'inline-flex',
@@ -1865,29 +1975,12 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                             <MoreHorizontal size={17} />
                           </button>
                           {isExpanded && (
-                            <div
-                              className={`row-action-menu ${isLastRow ? 'open-up' : ''}`}
-                              data-placement={isLastRow ? 'top' : 'bottom'}
-                              role="menu"
-                              aria-orientation="vertical"
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                position: 'absolute',
-                                zIndex: 9999,
-                                top: isLastRow ? 'auto' : 'calc(100% - 2px)',
-                                bottom: isLastRow ? 'calc(100% - 2px)' : 'auto',
-                                right: '6px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                minWidth: '175px',
-                                width: 'max-content',
-                                padding: '6px',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '9px',
-                                backgroundColor: '#ffffff',
-                                boxShadow:
-                                  '0 12px 30px -4px rgba(15, 23, 42, 0.22), 0 6px 14px -3px rgba(15, 23, 42, 0.12)',
-                                transformOrigin: isLastRow ? 'bottom right' : 'top right',
+                            <FloatingRowActionMenu
+                              isOpen={true}
+                              anchorRect={menuAnchorRect}
+                              onClose={() => {
+                                setExpandedListId(null)
+                                setMenuAnchorRect(null)
                               }}
                             >
                               <RowActionMenuItem
@@ -1896,6 +1989,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                                 onClick={() => {
                                   handleSelectSpecificList(list)
                                   setExpandedListId(null)
+                                  setMenuAnchorRect(null)
                                 }}
                               />
                               <RowActionMenuItem
@@ -1904,6 +1998,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                                 onClick={() => {
                                   handleOpenEditList(list)
                                   setExpandedListId(null)
+                                  setMenuAnchorRect(null)
                                 }}
                               />
                               <div
@@ -1923,9 +2018,10 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                                 onClick={() => {
                                   setDeleteListTarget(list)
                                   setExpandedListId(null)
+                                  setMenuAnchorRect(null)
                                 }}
                               />
-                            </div>
+                            </FloatingRowActionMenu>
                           )}
                         </td>
                       </tr>

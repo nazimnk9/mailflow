@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -16,11 +16,18 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
+  Paperclip,
 } from 'lucide-react'
 import { StatusBadge } from '@/components/status-badge'
+import { TablePagination } from '@/components/table-pagination'
+import {
+  AttachmentPreviewModal,
+  type PreviewableAttachment,
+} from '@/components/attachment-preview-modal'
 import { useMailsQuery } from '@/lib/hooks/use-mails-query'
-import type { MailItem } from '@/lib/api/mails'
+import type { MailItem, MailsPaginatedData } from '@/lib/api/mails'
 import { formatApiErrorMessage } from '@/lib/api-client'
+import { ensureArray } from '@/lib/utils'
 
 export function EmailLogsPage({
   route,
@@ -29,9 +36,6 @@ export function EmailLogsPage({
   route: string
   onAction: (message: string) => void
 }) {
-  const { data: mailsResponse, isLoading, isError, error, refetch, isFetching } = useMailsQuery()
-  const allMails = mailsResponse?.data ?? []
-
   // Current tab from route
   const subRoute = route.replace(/^(transactional\/)?logs\/?/, '').toLowerCase()
 
@@ -45,6 +49,84 @@ export function EmailLogsPage({
     return 'All statuses'
   })
 
+  // Attachment Preview Modal state
+  const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  const [previewAttachments, setPreviewAttachments] = useState<PreviewableAttachment[]>([])
+  const [previewInitialIndex, setPreviewInitialIndex] = useState(0)
+  const [previewTitle, setPreviewTitle] = useState('')
+
+  const openPreview = (attachments: PreviewableAttachment[], title: string, index = 0) => {
+    if (!attachments || attachments.length === 0) return
+    setPreviewAttachments(attachments)
+    setPreviewTitle(title)
+    setPreviewInitialIndex(index)
+    setPreviewModalOpen(true)
+  }
+
+  // Parse attachments from backend format
+  const parseAttachments = (attachments: unknown): PreviewableAttachment[] => {
+    if (!Array.isArray(attachments)) return []
+    return attachments.map((att, idx) => {
+      if (typeof att === 'string') {
+        return {
+          filename: att,
+          content_type: 'application/octet-stream',
+          size: 0,
+        }
+      }
+      if (typeof att === 'object' && att !== null) {
+        const a = att as Record<string, unknown>
+        return {
+          filename: String(a.filename || a.name || `attachment-${idx + 1}`),
+          content_type: String(a.content_type || a.contentType || a.type || 'application/octet-stream'),
+          size: typeof a.size === 'number' ? a.size : 0,
+          content: typeof a.content === 'string' ? a.content : undefined,
+          url: typeof a.url === 'string' ? a.url : undefined,
+        }
+      }
+      return {
+        filename: `attachment-${idx + 1}`,
+        content_type: 'application/octet-stream',
+        size: 0,
+      }
+    })
+  }
+
+  // Pagination state (starts at page 1 with page_size 20)
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+
+  // Query live mails with pagination params (API starts from page 1)
+  const { data: mailsResponse, isLoading, isError, error, refetch, isFetching } = useMailsQuery({
+    page: pagination.pageIndex + 1,
+    page_size: pagination.pageSize,
+  })
+
+  // Extract paginated metadata if returned by server
+  const rawData = mailsResponse?.data
+  const paginatedMeta: MailsPaginatedData | null = useMemo(() => {
+    if (
+      rawData &&
+      typeof rawData === 'object' &&
+      'items' in rawData &&
+      Array.isArray((rawData as MailsPaginatedData).items)
+    ) {
+      return rawData as MailsPaginatedData
+    }
+    return null
+  }, [rawData])
+
+  const allMails: MailItem[] = useMemo(() => {
+    if (paginatedMeta) {
+      return ensureArray<MailItem>(paginatedMeta.items)
+    }
+    return ensureArray<MailItem>(mailsResponse?.data ?? mailsResponse)
+  }, [mailsResponse, paginatedMeta])
+
+  // Reset page to 0 when filters or search change
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+  }, [subRoute, selectedStatus, selectedNode, search])
+
   // Compute metrics
   const metrics = useMemo(() => {
     let delivered = 0
@@ -57,12 +139,12 @@ export function EmailLogsPage({
       else if (st === 'failed' || st === 'bounced' || st === 'rejected') failed++
     }
     return {
-      total: allMails.length,
+      total: typeof paginatedMeta?.total === 'number' ? paginatedMeta.total : allMails.length,
       delivered,
       pending,
       failed,
     }
-  }, [allMails])
+  }, [allMails, paginatedMeta])
 
   // Filtered rows
   const filteredMails = useMemo(() => {
@@ -104,6 +186,35 @@ export function EmailLogsPage({
       return true
     })
   }, [allMails, subRoute, selectedStatus, selectedNode, search])
+
+  // Check if any client-side filter is narrowing down the results
+  const isFilterActive = useMemo(() => {
+    return (
+      Boolean(search.trim()) ||
+      selectedStatus !== 'All statuses' ||
+      selectedNode !== 'All nodes' ||
+      Boolean(subRoute)
+    )
+  }, [search, selectedStatus, selectedNode, subRoute])
+
+  // Total count for pagination
+  const totalCount = useMemo(() => {
+    if (paginatedMeta && !isFilterActive) {
+      return typeof paginatedMeta.total === 'number' ? paginatedMeta.total : filteredMails.length
+    }
+    return filteredMails.length
+  }, [paginatedMeta, isFilterActive, filteredMails.length])
+
+  // Slice paginated mails for display
+  const displayMails = useMemo(() => {
+    // If server sent paginated items and no extra client filter active
+    if (paginatedMeta && !isFilterActive && paginatedMeta.items.length <= pagination.pageSize) {
+      return filteredMails
+    }
+    // Client-side pagination slice
+    const start = pagination.pageIndex * pagination.pageSize
+    return filteredMails.slice(start, start + pagination.pageSize)
+  }, [filteredMails, paginatedMeta, isFilterActive, pagination.pageIndex, pagination.pageSize])
 
   const tabs: [string, string][] = [
     ['All events', 'logs'],
@@ -315,7 +426,7 @@ export function EmailLogsPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredMails.map((mail) => {
+                  {displayMails.map((mail) => {
                     const toDisplay = Array.isArray(mail.to) ? mail.to.join(', ') : mail.to
                     const dateDisplay = mail.created_at
                       ? new Date(mail.created_at).toLocaleString([], {
@@ -327,6 +438,7 @@ export function EmailLogsPage({
                         })
                       : '—'
                     const eventsCount = mail.events?.length ?? 0
+                    const mailAttachments = parseAttachments(mail.attachments)
 
                     return (
                       <tr
@@ -346,7 +458,23 @@ export function EmailLogsPage({
                             <span className="log-to-addr">
                               <Mail size={13} /> {toDisplay}
                             </span>
-                            <b className="log-subject-title">{mail.subject || '(No subject)'}</b>
+                            <div className="log-subject-row">
+                              <b className="log-subject-title">{mail.subject || '(No subject)'}</b>
+                              {mailAttachments.length > 0 && (
+                                <button
+                                  type="button"
+                                  className="log-attachments-pill"
+                                  title={`Preview ${mailAttachments.length} attachment${mailAttachments.length > 1 ? 's' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openPreview(mailAttachments, mail.subject || 'Email Attachments')
+                                  }}
+                                >
+                                  <Paperclip size={12} />
+                                  <span>{mailAttachments.length}</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td>
@@ -383,7 +511,7 @@ export function EmailLogsPage({
 
             {/* Mobile Cards View */}
             <div className="mobile-data-cards">
-              {filteredMails.map((mail) => {
+              {displayMails.map((mail) => {
                 const toDisplay = Array.isArray(mail.to) ? mail.to.join(', ') : mail.to
                 const dateDisplay = mail.created_at
                   ? new Date(mail.created_at).toLocaleDateString([], {
@@ -393,13 +521,31 @@ export function EmailLogsPage({
                       minute: '2-digit',
                     })
                   : '—'
+                const mailAttachments = parseAttachments(mail.attachments)
 
                 return (
                   <article className="mobile-data-card" key={mail.id}>
                     <div className="mobile-card-top">
                       <div>
                         <b>{toDisplay}</b>
-                        <small>{mail.subject || '(No subject)'}</small>
+                        <div className="log-subject-row" style={{ marginTop: '3px' }}>
+                          <small>{mail.subject || '(No subject)'}</small>
+                          {mailAttachments.length > 0 && (
+                            <button
+                              type="button"
+                              className="log-attachments-pill"
+                              style={{ padding: '1px 6px', fontSize: '11px' }}
+                              title={`Preview ${mailAttachments.length} attachment${mailAttachments.length > 1 ? 's' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openPreview(mailAttachments, mail.subject || 'Email Attachments')
+                              }}
+                            >
+                              <Paperclip size={11} />
+                              <span>{mailAttachments.length}</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <StatusBadge status={mail.status || 'pending'} />
                     </div>
@@ -414,9 +560,28 @@ export function EmailLogsPage({
                 )
               })}
             </div>
+
+            {/* Pagination Controls */}
+            <TablePagination
+              pageIndex={pagination.pageIndex}
+              pageSize={pagination.pageSize}
+              totalItems={totalCount}
+              pageSizeOptions={[10, 20, 50, 100]}
+              onPageChange={(pageIndex) => setPagination((prev) => ({ ...prev, pageIndex }))}
+              onPageSizeChange={(pageSize) => setPagination({ pageIndex: 0, pageSize })}
+            />
           </>
         )}
       </section>
+
+      {/* Attachment Preview Lightbox / Modal */}
+      <AttachmentPreviewModal
+        isOpen={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        attachments={previewAttachments}
+        initialIndex={previewInitialIndex}
+        emailSubject={previewTitle}
+      />
     </>
   )
 }
