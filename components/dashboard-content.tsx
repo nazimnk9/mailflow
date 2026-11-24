@@ -10,7 +10,8 @@ import { useRouter } from 'next/navigation'
 import { createCampaign } from '@/lib/services/campaigns'
 import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Activity, ArrowDown, ArrowDownToLine, ArrowRight, ArrowUpRight, Braces, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Clock3, Code2, ContactRound, Copy, ExternalLink, Globe2, GripVertical, Laptop, LifeBuoy, Mail, Minus, MousePointerClick, MoreHorizontal, Plus, Search, Send, ShieldAlert, ShieldCheck, Smartphone, Sparkles, Trash2, Type, Workflow, X } from 'lucide-react'
+import { Activity, ArrowDown, ArrowDownToLine, ArrowRight, ArrowUpRight, Braces, Check, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Clock3, Code2, ContactRound, Copy, ExternalLink, Eye, Globe2, GripVertical, Laptop, LifeBuoy, Mail, Minus, MousePointerClick, MoreHorizontal, Pencil, Plus, Search, Send, ShieldAlert, ShieldCheck, Smartphone, Sparkles, Trash2, Type, Workflow, X } from 'lucide-react'
+import { FloatingRowActionMenu, RowActionMenuItem, RowActionDivider } from '@/components/floating-row-action-menu'
 import { chartData, getRowsForRoute, statCards, type MockRow } from '@/lib/mock-data'
 import { DashboardExtraPage, hasDashboardExtraPage } from '@/components/dashboard-extra-pages'
 import { CrmDealsBoard } from '@/components/crm-deals-board'
@@ -81,6 +82,7 @@ export function DashboardContent(props: Props) {
   const [saved, setSaved] = useState(false)
   const [workflowRunning, setWorkflowRunning] = useState(false)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [actionAnchorRect, setActionAnchorRect] = useState<DOMRect | null>(null)
   const [selectedSegments, setSelectedSegments] = useState<string[]>(['Engaged customers'])
   const [showPassword, setShowPassword] = useState(false)
   const [abTestEnabled, setAbTestEnabled] = useState(false)
@@ -177,7 +179,121 @@ export function DashboardContent(props: Props) {
     <div className="page-heading-row"><div><div className="page-eyebrow">METROMAIL WORKSPACE <span>/</span> {route.startsWith('contacts') ? 'CONTACTS & CRM' : title[0].toUpperCase()}</div><h1>{route.startsWith('contacts') ? 'Contacts & CRM' : title[0]}</h1><p>{title[1]}</p></div><div className="page-heading-actions">{allRows.length > 0 && <DataExportMenu rows={filteredRows.map((row) => ({ Name: row.name, Detail: row.detail, Status: row.status, Metric: row.metric, Date: row.date, Type: row.kind }))} fileName={title[0]} onAction={onAction} />}<button className="button button-primary" onClick={onPrimaryAction}><Plus size={15} />{primaryAction}</button></div></div>
     {(route.startsWith('contacts') || route.startsWith('campaigns') || route.startsWith('logs') || route.startsWith('transactional') || route.startsWith('api-keys') || route.startsWith('suppressions') || route.startsWith('analytics') || route.startsWith('billing') || route.startsWith('support')) && <div className="section-tabs" style={{ marginBottom: '22px' }}>{getTabs(route).map(([label, href]) => <Link className={(route === href || (href === route.split('/')[0] && !route.includes('/')) ? 'active' : '')} href={`/app/${href}`} key={href}>{label}</Link>)}</div>}
     {route.startsWith('domains') && route !== 'domains' ? <DomainPage route={route} onAction={onAction} onOpenAction={onOpenAction} copiedRecord={copiedRecord} copyText={copyText} /> : <section className="data-panel"><div className="data-panel-top"><div><h2>{route.includes('contact') ? route.includes('segment') ? 'Audience segments' : route.includes('list') ? 'Your lists' : route.includes('form') ? 'Signup forms' : route.includes('attribute') ? 'Contact attributes' : route.includes('unsubscribed') ? 'Unsubscribed contacts' : route.includes('blocklisted') ? 'Blocklisted contacts' : 'All contacts' : route.includes('campaign') ? 'Recent campaigns' : route.includes('domain') ? 'Sending domains' : route.includes('key') || route.includes('api') ? 'API credentials' : route.includes('suppress') ? 'Suppression list' : route.includes('automation') ? 'Active automations' : route.includes('support') ? 'Help articles' : route.includes('billing') ? 'Billing history' : route.includes('integration') ? 'Available integrations' : 'Recent email activity'}</h2><p>{filteredRows.length.toLocaleString()} {filteredRows.length === 1 ? 'item' : 'items'} in the selected view</p></div></div><div className="table-filter-bar"><label className="table-search-control"><Search size={15} aria-hidden="true" /><input aria-label="Search all table data" placeholder="Search all table data…" value={search} onChange={(event) => setSearch(event.target.value)} />{search && <button type="button" aria-label="Clear search" onClick={() => setSearch('')}>×</button>}</label><div className="table-filter-controls"><label className="table-filter-control"><span>Status</span><select aria-label="Filter by status" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}><option>All statuses</option>{Array.from(new Set(allRows.map((row) => row.status))).map((status) => <option key={status}>{status}</option>)}</select></label><label className="table-filter-control"><span>Type</span><select aria-label="Filter by type" value={selectedKind} onChange={(event) => setSelectedKind(event.target.value)}><option>All types</option>{Array.from(new Set(allRows.map((row) => row.kind))).map((kind) => <option key={kind}>{kind}</option>)}</select></label><label className="table-filter-control table-date-control"><span>Start date</span><input aria-label="Start date" type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} /></label><label className="table-filter-control table-date-control"><span>End date</span><input aria-label="End date" type="date" value={endDate} min={startDate || undefined} aria-invalid={dateRangeError} onChange={(event) => setEndDate(event.target.value)} /></label><button className="table-reset-button" type="button" disabled={!search && selectedStatus === 'All statuses' && selectedKind === 'All types' && !startDate && !endDate} onClick={() => { setSearch(''); setSelectedStatus('All statuses'); setSelectedKind('All types'); setStartDate(''); setEndDate('') }}>Reset</button></div>{dateRangeError && <p className="table-filter-error" role="alert">Start date must be on or before the end date.</p>}</div>
-      <div className="desktop-table-wrap"><table className="data-table"><thead>{table.getHeaderGroups().map((headerGroup) => <tr key={headerGroup.id}>{headerGroup.headers.map((header) => <th key={header.id}><button className="table-sort" onClick={header.column.getToggleSortingHandler()}>{flexRender(header.column.columnDef.header, header.getContext())}<span>{header.column.getIsSorted() === 'asc' ? '↑' : header.column.getIsSorted() === 'desc' ? '↓' : '↕'}</span></button></th>)}<th><span className="sr-only">Actions</span></th></tr>)}</thead><tbody>{table.getRowModel().rows.length === 0 ? <tr><td className="table-empty-state" colSpan={table.getVisibleFlatColumns().length + 1}>No matching results. Adjust your search or status filter.</td></tr> : table.getRowModel().rows.map((row) => { const isExpanded = expandedRow === row.original.name; return <tr key={row.id} className={isExpanded ? 'row-action-active' : ''} style={{ position: 'relative', zIndex: isExpanded ? 100 : 1 }}>{row.getVisibleCells().map((cell) => <td key={cell.id}>{cell.column.id === 'status' ? <StatusBadge status={cell.getValue<string>()} /> : cell.column.id === 'name' ? flexRender(cell.column.columnDef.cell, cell.getContext()) : String(cell.getValue() ?? '')}</td>)}<td className="row-action-cell" style={{ position: 'relative', zIndex: isExpanded ? 110 : 1 }}><button aria-label={`Open ${row.original.name} actions`} onClick={() => setExpandedRow(isExpanded ? null : row.original.name)}><MoreHorizontal size={17} /></button>{isExpanded && <div className="row-action-menu"><button onClick={() => { openDetails(row.original); setExpandedRow(null) }}>View details</button><button onClick={() => { onAction(`${row.original.name} copied.`); setExpandedRow(null) }}>Copy name</button><button onClick={() => { onAction(`Edit ${row.original.name} opened.`); setExpandedRow(null) }}>Edit</button></div>}</td></tr> })}</tbody></table></div>
+      <div className="desktop-table-wrap">
+        <table className="data-table">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th key={header.id}>
+                    <button className="table-sort" onClick={header.column.getToggleSortingHandler()}>
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      <span>{header.column.getIsSorted() === 'asc' ? '↑' : header.column.getIsSorted() === 'desc' ? '↓' : '↕'}</span>
+                    </button>
+                  </th>
+                ))}
+                <th><span className="sr-only">Actions</span></th>
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.length === 0 ? (
+              <tr>
+                <td className="table-empty-state" colSpan={table.getVisibleFlatColumns().length + 1}>
+                  No matching results. Adjust your search or status filter.
+                </td>
+              </tr>
+            ) : (
+              table.getRowModel().rows.map((row) => {
+                const isExpanded = expandedRow === row.original.name
+                return (
+                  <tr key={row.id} className={isExpanded ? 'row-action-active' : ''}>
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id}>
+                        {cell.column.id === 'status' ? (
+                          <StatusBadge status={cell.getValue<string>()} />
+                        ) : cell.column.id === 'name' ? (
+                          flexRender(cell.column.columnDef.cell, cell.getContext())
+                        ) : (
+                          String(cell.getValue() ?? '')
+                        )}
+                      </td>
+                    ))}
+                    <td className="row-action-cell" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className={`row-action-trigger ${isExpanded ? 'active' : ''}`}
+                        aria-label={`Open ${row.original.name} actions`}
+                        aria-expanded={isExpanded}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (isExpanded) {
+                            setExpandedRow(null)
+                            setActionAnchorRect(null)
+                          } else {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setActionAnchorRect(rect)
+                            setExpandedRow(row.original.name)
+                          }
+                        }}
+                      >
+                        <MoreHorizontal size={17} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+      {expandedRow && actionAnchorRect && (
+        <FloatingRowActionMenu
+          isOpen={Boolean(expandedRow)}
+          anchorRect={actionAnchorRect}
+          onClose={() => {
+            setExpandedRow(null)
+            setActionAnchorRect(null)
+          }}
+        >
+          {(() => {
+            const activeRow = filteredRows.find((r) => r.name === expandedRow)
+            if (!activeRow) return null
+            return (
+              <>
+                <RowActionMenuItem
+                  icon={Eye}
+                  label="View details"
+                  onClick={() => {
+                    openDetails(activeRow)
+                    setExpandedRow(null)
+                    setActionAnchorRect(null)
+                  }}
+                />
+                <RowActionMenuItem
+                  icon={Copy}
+                  label="Copy name"
+                  onClick={() => {
+                    copyText(activeRow.name)
+                    setExpandedRow(null)
+                    setActionAnchorRect(null)
+                  }}
+                />
+                <RowActionDivider />
+                <RowActionMenuItem
+                  icon={Pencil}
+                  label="Edit"
+                  onClick={() => {
+                    onAction(`Edit ${activeRow.name} opened.`)
+                    setExpandedRow(null)
+                    setActionAnchorRect(null)
+                  }}
+                />
+              </>
+            )
+          })()}
+        </FloatingRowActionMenu>
+      )}
       <div className="mobile-data-cards">{table.getRowModel().rows.length === 0 ? <p className="mobile-empty-state">No matching results. Adjust your search or status filter.</p> : table.getRowModel().rows.map((row) => { const item = row.original; return <article className="mobile-data-card" key={row.id}><div className="mobile-card-top"><div><b>{item.name}</b><small>{item.detail}</small></div><StatusBadge status={item.status} /></div><div className="mobile-card-meta"><span>{item.metric}</span><span>{item.date}</span></div><button className="mobile-card-action" onClick={() => openDetails(item)}>View details <ArrowRight size={14} /></button></article> })}</div>
       <TablePagination pageIndex={table.getState().pagination.pageIndex} pageSize={table.getState().pagination.pageSize} totalItems={filteredRows.length} onPageChange={(pageIndex) => table.setPageIndex(pageIndex)} onPageSizeChange={(pageSize) => table.setPageSize(pageSize)} />
     </section>}

@@ -316,13 +316,13 @@ export function MessageDetailPage({
               >
                 <FileText size={13} /> Plain Text
               </button>
-              <button
+              {/* <button
                 type="button"
                 className={`msg-tab-btn ${activeTab === 'headers' ? 'active' : ''}`}
                 onClick={() => setActiveTab('headers')}
               >
                 <Server size={13} /> Headers &amp; JSON
-              </button>
+              </button> */}
             </div>
 
             <div className="message-tab-content">

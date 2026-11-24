@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import { FloatingRowActionMenu, RowActionMenuItem, RowActionDivider } from '@/components/floating-row-action-menu'
 import {
   AlertCircle,
   ArrowRight,
@@ -88,196 +89,6 @@ function ensureArray<T>(data: unknown): T[] {
     }
   }
   return []
-}
-
-interface FloatingRowActionMenuProps {
-  isOpen: boolean
-  anchorRect: DOMRect | null
-  onClose: () => void
-  children: React.ReactNode
-}
-
-function FloatingRowActionMenu({
-  isOpen,
-  anchorRect,
-  onClose,
-  children,
-}: FloatingRowActionMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!isOpen) return
-
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null
-      if (menuRef.current && target && !menuRef.current.contains(target)) {
-        if (target.closest('.row-action-trigger')) {
-          return
-        }
-        onClose()
-      }
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    const handleScrollOrResize = () => {
-      onClose()
-    }
-
-    document.addEventListener('mousedown', handleMouseDown)
-    document.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('scroll', handleScrollOrResize, true)
-    window.addEventListener('resize', handleScrollOrResize)
-
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown)
-      document.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('scroll', handleScrollOrResize, true)
-      window.removeEventListener('resize', handleScrollOrResize)
-    }
-  }, [isOpen, onClose])
-
-  if (!mounted || !isOpen || !anchorRect || typeof document === 'undefined') {
-    return null
-  }
-
-  const spaceBelow = window.innerHeight - anchorRect.bottom
-  const spaceAbove = anchorRect.top
-  const openUp = spaceBelow < 170 && spaceAbove > spaceBelow
-
-  const top = openUp ? undefined : Math.max(8, anchorRect.bottom + 4)
-  const bottom = openUp ? Math.max(8, window.innerHeight - anchorRect.top + 4) : undefined
-  const right = Math.max(8, window.innerWidth - anchorRect.right)
-
-  return createPortal(
-    <div
-      ref={menuRef}
-      className={`row-action-menu floating-portal ${openUp ? 'open-up' : ''}`}
-      data-placement={openUp ? 'top' : 'bottom'}
-      role="menu"
-      aria-orientation="vertical"
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        position: 'fixed',
-        zIndex: 999999,
-        top: top !== undefined ? `${top}px` : undefined,
-        bottom: bottom !== undefined ? `${bottom}px` : undefined,
-        right: `${right}px`,
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: '175px',
-        width: 'max-content',
-        padding: '6px',
-        border: '1px solid #e2e8f0',
-        borderRadius: '9px',
-        backgroundColor: '#ffffff',
-        boxShadow:
-          '0 12px 30px -4px rgba(15, 23, 42, 0.22), 0 6px 14px -3px rgba(15, 23, 42, 0.12)',
-        animation: 'fadeInRowMenu 0.12s ease-out',
-        transformOrigin: openUp ? 'bottom right' : 'top right',
-      }}
-    >
-      {children}
-    </div>,
-    document.body
-  )
-}
-
-function RowActionMenuItem({
-  icon: Icon,
-  label,
-  onClick,
-  isDanger = false,
-}: {
-  icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
-  label: string
-  onClick: () => void
-  isDanger?: boolean
-}) {
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <button
-      type="button"
-      className={`row-action-menu-item ${isDanger ? 'row-action-danger' : ''}`}
-      role="menuitem"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={(e) => {
-        e.stopPropagation()
-        onClick()
-      }}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        width: '100%',
-        padding: '8px 12px',
-        border: 'none',
-        borderRadius: '6px',
-        fontSize: '13.5px',
-        fontWeight: 500,
-        textAlign: 'left',
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        userSelect: 'none',
-        backgroundColor: hovered
-          ? isDanger
-            ? '#fef2f2'
-            : '#eff6ff'
-          : '#ffffff',
-        color: isDanger
-          ? hovered
-            ? '#b91c1c'
-            : '#dc2626'
-          : hovered
-          ? '#1d4ed8'
-          : '#334155',
-        transition: 'background-color 0.15s ease, color 0.15s ease',
-      }}
-    >
-      <Icon
-        size={15}
-        className="row-action-icon"
-        style={{
-          flexShrink: 0,
-          color: isDanger
-            ? hovered
-              ? '#b91c1c'
-              : '#ef4444'
-            : hovered
-            ? '#2563eb'
-            : '#64748b',
-          transition: 'color 0.15s ease',
-        }}
-      />
-      <span
-        style={{
-          color: isDanger
-            ? hovered
-              ? '#b91c1c'
-              : '#dc2626'
-            : hovered
-            ? '#1d4ed8'
-            : '#334155',
-          fontWeight: 500,
-          fontSize: '13.5px',
-          transition: 'color 0.15s ease',
-        }}
-      >
-        {label}
-      </span>
-    </button>
-  )
 }
 
 function AssignToListMultiSelect({
@@ -1504,7 +1315,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
             </div>
 
             {/* Desktop Table View */}
-            <div className="desktop-table-wrap" style={{ minHeight: '300px', paddingBottom: '30px' }}>
+            <div className="desktop-table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -1692,16 +1503,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                                     setMenuAnchorRect(null)
                                   }}
                                 />
-                                <div
-                                  className="row-action-divider"
-                                  role="separator"
-                                  style={{
-                                    height: '1px',
-                                    margin: '4px 2px',
-                                    backgroundColor: '#e2e8f0',
-                                    border: 'none',
-                                  }}
-                                />
+                                <RowActionDivider />
                                 <RowActionMenuItem
                                   icon={Trash2}
                                   label="Delete"
@@ -1823,7 +1625,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
           </div>
 
           {/* Desktop Table View */}
-          <div className="desktop-table-wrap" style={{ minHeight: '300px', paddingBottom: '30px' }}>
+          <div className="desktop-table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
@@ -2001,16 +1803,7 @@ export function ContactsManagement({ route = 'contacts', onAction }: ContactsMan
                                   setMenuAnchorRect(null)
                                 }}
                               />
-                              <div
-                                className="row-action-divider"
-                                role="separator"
-                                style={{
-                                  height: '1px',
-                                  margin: '4px 2px',
-                                  backgroundColor: '#e2e8f0',
-                                  border: 'none',
-                                }}
-                              />
+                              <RowActionDivider />
                               <RowActionMenuItem
                                 icon={Trash2}
                                 label="Delete"

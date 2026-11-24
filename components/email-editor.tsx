@@ -391,7 +391,7 @@ export function EmailEditor({
               <Code2 size={14} />
               <span>HTML Source Code</span>
             </button>
-            <button
+            {/* <button
               type="button"
               role="tab"
               aria-selected={editorMode === 'plaintext'}
@@ -400,7 +400,7 @@ export function EmailEditor({
             >
               <Quote size={14} />
               <span>Plain Text Fallback</span>
-            </button>
+            </button> */}
           </div>
         </div>
 
