@@ -547,7 +547,7 @@ export function DashboardApp({ route }: { route: string }) {
               </div>
             )}
           </div>
-          <div className="topbar-popover-wrap" ref={quickCreateRef}>
+          {/* <div className="topbar-popover-wrap" ref={quickCreateRef}>
             <Button className="topbar-create" aria-expanded={quickOpen} onClick={() => setQuickOpen(!quickOpen)}>
               <Plus size={15} /> <span>Quick create</span><ChevronDown size={13} />
             </Button>
@@ -561,7 +561,7 @@ export function DashboardApp({ route }: { route: string }) {
                 <button onClick={() => runQuickAction('import')}><Blocks size={15} /> Import contacts</button>
               </div>
             )}
-          </div>
+          </div> */}
         </div>
       </header>
       <main className="dashboard-content-area"><DashboardContent route={routePath} search={search} setSearch={setSearch} onAction={(message) => setNotice(message)} onOpenAction={openAction} completed={completed} onToggleChecklist={toggleChecklist} customRows={customRows} onImportRows={addCustomRows} onCreateRows={addCustomRows} /></main>
