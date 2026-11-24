@@ -486,7 +486,7 @@ export function TransactionalPage({ onAction }: { onAction: (message: string) =>
           <div className="developer-banner-content">
             <h3>Built for Developer REST API &amp; Dedicated Sending Nodes</h3>
             <p>
-              Send transactional messages from your app using our secure REST API (<code>POST /api/mails/send</code>) or dedicated SMTP relay via high-performance MTA nodes.
+              Send transactional messages from your app using our secure REST API (<code>POST /api/mails/send-mail</code>) or dedicated SMTP relay via high-performance MTA nodes.
             </p>
             <div className="developer-banner-domain">
               <span className="domain-status-wrap">
@@ -511,7 +511,7 @@ export function TransactionalPage({ onAction }: { onAction: (message: string) =>
         </div>
         <div className="developer-banner-right">
           <pre>
-            <code>{`POST /api/mails/send\nfrom_email: support@${selectedDomain || 'yourdomain.com'}\nto: ["customer@example.com"]`}</code>
+            <code>{`POST /api/mails/send-mail\nfrom_email: support@${selectedDomain || 'yourdomain.com'}\nto: ["customer@example.com"]`}</code>
           </pre>
           <Link href="/app/api-keys/docs" className="button button-secondary dev-guide-btn">
             <span>API Guide</span>

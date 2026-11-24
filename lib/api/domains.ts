@@ -53,30 +53,30 @@ export interface DeleteDomainResponse {
 export const domainsApi = {
   /**
    * Fetch all sending domains
-   * GET /domains
+   * GET /api/domains/list-domains
    */
   getDomains(): Promise<GetDomainsResponse> {
-    return apiClient<GetDomainsResponse>('/domains', {
+    return apiClient<GetDomainsResponse>('/domains/list-domains', {
       method: 'GET',
     })
   },
 
   /**
    * Fetch a specific domain by ID
-   * GET /domains/{domain_id}
+   * GET /api/domains/get-domain/{domain_id}
    */
   getDomainById(domainId: string): Promise<GetDomainByIdResponse> {
-    return apiClient<GetDomainByIdResponse>(`/domains/${domainId}`, {
+    return apiClient<GetDomainByIdResponse>(`/domains/get-domain/${domainId}`, {
       method: 'GET',
     })
   },
 
   /**
    * Add a new sending domain
-   * POST /domains
+   * POST /api/domains/add-domain
    */
   createDomain(payload: CreateDomainPayload): Promise<CreateDomainResponse> {
-    return apiClient<CreateDomainResponse>('/domains', {
+    return apiClient<CreateDomainResponse>('/domains/add-domain', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
@@ -84,11 +84,21 @@ export const domainsApi = {
 
   /**
    * Delete a domain by ID
-   * DELETE /domains/{domain_id}
+   * DELETE /api/domains/delete-domain/{domain_id}
    */
   deleteDomain(domainId: string): Promise<DeleteDomainResponse> {
-    return apiClient<DeleteDomainResponse>(`/domains/${domainId}`, {
+    return apiClient<DeleteDomainResponse>(`/domains/delete-domain/${domainId}`, {
       method: 'DELETE',
+    })
+  },
+
+  /**
+   * Verify domain DNS configuration
+   * POST /api/domains/verify-domain/{domain_id}
+   */
+  verifyDomain(domainId: string): Promise<GetDomainByIdResponse> {
+    return apiClient<GetDomainByIdResponse>(`/domains/verify-domain/${domainId}`, {
+      method: 'POST',
     })
   },
 }

@@ -53,10 +53,31 @@ export interface LoginResponse {
   errors?: string
 }
 
+export interface UserProfile {
+  id: string
+  email: string
+  full_name: string
+  phone_number?: string | null
+  is_verified: boolean
+  created_at: string
+}
+
+export interface UserProfileResponse {
+  data: UserProfile
+  success: boolean
+  message?: string | null
+  errors?: string | null
+}
+
+export interface UpdateProfilePayload {
+  full_name?: string
+  phone_number?: string | null
+}
+
 export const authApi = {
   /**
    * Register a new user
-   * POST /auth/register
+   * POST /api/auth/register
    */
   register(payload: RegisterPayload): Promise<RegisterResponse> {
     return apiClient<RegisterResponse>('/auth/register', {
@@ -68,7 +89,7 @@ export const authApi = {
 
   /**
    * Resend verification OTP to user email
-   * POST /auth/resend-otp
+   * POST /api/auth/resend-otp
    */
   resendOtp(payload: ResendOtpPayload): Promise<ResendOtpResponse> {
     return apiClient<ResendOtpResponse>('/auth/resend-otp', {
@@ -80,7 +101,7 @@ export const authApi = {
 
   /**
    * Verify email OTP
-   * POST /auth/verify-otp
+   * POST /api/auth/verify-otp
    */
   verifyOtp(payload: VerifyOtpPayload): Promise<VerifyOtpResponse> {
     return apiClient<VerifyOtpResponse>('/auth/verify-otp', {
@@ -92,13 +113,34 @@ export const authApi = {
 
   /**
    * Authenticate user with credentials
-   * POST /auth/login
+   * POST /api/auth/login
    */
   login(payload: LoginPayload): Promise<LoginResponse> {
     return apiClient<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload),
       skipAuth: true,
+    })
+  },
+
+  /**
+   * Fetch current authenticated user's profile
+   * GET /api/auth/get-profile
+   */
+  getProfile(): Promise<UserProfileResponse> {
+    return apiClient<UserProfileResponse>('/auth/get-profile', {
+      method: 'GET',
+    })
+  },
+
+  /**
+   * Update current authenticated user's profile
+   * PATCH /api/auth/update-profile
+   */
+  updateProfile(payload: UpdateProfilePayload): Promise<UserProfileResponse> {
+    return apiClient<UserProfileResponse>('/auth/update-profile', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
     })
   },
 }

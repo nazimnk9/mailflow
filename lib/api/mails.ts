@@ -71,7 +71,28 @@ export interface GetMailsParams {
   page_size?: number
   search?: string
   status?: string
+  domain?: string
+  campaign?: string
   node?: string
+}
+
+export interface MailStatsData {
+  total: number
+  delivered: number
+  bounced: number
+  opened: number
+  clicked: number
+  failed: number
+  delivery_rate?: number
+  open_rate?: number
+  click_rate?: number
+}
+
+export interface MailStatsResponse {
+  data: MailStatsData
+  success: boolean
+  message?: string | null
+  errors?: string | null
 }
 
 export interface GetMailsResponse {
@@ -91,12 +112,12 @@ export interface GetMailByIdResponse {
 export const mailsApi = {
   /**
    * Send a transactional email message
-   * POST /mails/send
+   * POST /api/mails/send-mail
    */
   sendMail(payload: SendMailPayload | FormData): Promise<SendMailResponse> {
     const isFormData =
       typeof FormData !== 'undefined' && payload instanceof FormData
-    return apiClient<SendMailResponse>('/mails/send', {
+    return apiClient<SendMailResponse>('/mails/send-mail', {
       method: 'POST',
       body: isFormData ? payload : JSON.stringify(payload),
     })
@@ -104,10 +125,10 @@ export const mailsApi = {
 
   /**
    * Fetch all sent email logs
-   * GET /mails
+   * GET /api/mails/list-mails
    */
   getMails(params?: GetMailsParams): Promise<GetMailsResponse> {
-    return apiClient<GetMailsResponse>('/mails', {
+    return apiClient<GetMailsResponse>('/mails/list-mails', {
       method: 'GET',
       params: params as Record<string, string | number | boolean | undefined>,
     })
@@ -115,11 +136,22 @@ export const mailsApi = {
 
   /**
    * Fetch a single mail log with timeline events by ID
-   * GET /mails/{mail_id}
+   * GET /api/mails/get-mail/{mail_id}
    */
   getMailById(mailId: string): Promise<GetMailByIdResponse> {
-    return apiClient<GetMailByIdResponse>(`/mails/${mailId}`, {
+    return apiClient<GetMailByIdResponse>(`/mails/get-mail/${mailId}`, {
       method: 'GET',
+    })
+  },
+
+  /**
+   * Fetch mail delivery statistics
+   * GET /api/mails/get-stats
+   */
+  getStats(days: 7 | 30 | 90 = 30): Promise<MailStatsResponse> {
+    return apiClient<MailStatsResponse>('/mails/get-stats', {
+      method: 'GET',
+      params: { days },
     })
   },
 }

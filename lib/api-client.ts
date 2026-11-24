@@ -203,8 +203,17 @@ export async function apiClient<T>(
   let url: string
 
   if (typeof window !== 'undefined') {
-    // In browser: route through Next.js BFF server routes for maximum HttpOnly cookie protection
-    if (cleanEndpoint.startsWith('auth/')) {
+    // In browser: route cookie-managing auth requests through custom Next.js BFF routes,
+    // and all other API calls through the secure proxy (which automatically attaches HttpOnly JWT)
+    const isCustomAuthRoute =
+      cleanEndpoint === 'auth/login' ||
+      cleanEndpoint === 'auth/register' ||
+      cleanEndpoint === 'auth/resend-otp' ||
+      cleanEndpoint === 'auth/verify-otp' ||
+      cleanEndpoint === 'auth/logout' ||
+      cleanEndpoint === 'auth/session'
+
+    if (isCustomAuthRoute) {
       url = `/api/${cleanEndpoint}`
     } else {
       url = `/api/proxy/${cleanEndpoint}`

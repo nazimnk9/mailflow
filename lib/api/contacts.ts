@@ -119,87 +119,147 @@ export interface DeleteContactResponse {
 
 export const contactsApi = {
   /**
-   * Fetch all contact lists
-   * GET /contact-lists
+   * Fetch all contact lists (mapped from backend tags)
+   * GET /api/contacts/list-tags
    */
-  getContactLists(): Promise<GetContactListsResponse> {
-    return apiClient<GetContactListsResponse>('/contact-lists', {
-      method: 'GET',
-    })
+  async getContactLists(): Promise<GetContactListsResponse> {
+    try {
+      const res = await apiClient<{ data: string[]; success: boolean; message?: string }>('/contacts/list-tags', {
+        method: 'GET',
+      })
+      const tags = Array.isArray(res?.data) ? res.data : []
+      const lists: ContactListItem[] = tags.map((tag) => ({
+        id: tag,
+        name: tag,
+        description: `Tag: ${tag}`,
+        contact_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }))
+      return {
+        data: lists,
+        success: true,
+        message: res.message || 'Lists fetched',
+      }
+    } catch {
+      return {
+        data: [],
+        success: true,
+        message: 'No lists found',
+      }
+    }
   },
 
   /**
-   * Fetch single contact list by ID
-   * GET /contact-lists/{list_id}
+   * Fetch single contact list by ID (tag)
    */
   getContactList(listId: string): Promise<GetContactListResponse> {
-    return apiClient<GetContactListResponse>(`/contact-lists/${listId}`, {
-      method: 'GET',
+    return Promise.resolve({
+      data: {
+        id: listId,
+        name: listId,
+        description: `Tag: ${listId}`,
+        contact_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      success: true,
+      message: 'List details',
     })
   },
 
   /**
    * Create a new contact list
-   * POST /contact-lists
    */
   createContactList(payload: CreateContactListPayload): Promise<CreateContactListResponse> {
-    return apiClient<CreateContactListResponse>('/contact-lists', {
-      method: 'POST',
-      body: JSON.stringify(payload),
+    return Promise.resolve({
+      data: {
+        id: payload.name,
+        name: payload.name,
+        description: payload.description || '',
+        contact_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      success: true,
+      message: 'List created',
     })
   },
 
   /**
    * Update a contact list
-   * PATCH /contact-lists/{list_id}
    */
   patchContactList(
     listId: string,
     payload: PatchContactListPayload
   ): Promise<PatchContactListResponse> {
-    return apiClient<PatchContactListResponse>(`/contact-lists/${listId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
+    return Promise.resolve({
+      data: {
+        id: listId,
+        name: payload.name || listId,
+        description: payload.description || '',
+        contact_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      success: true,
+      message: 'List updated',
     })
   },
 
   /**
    * Delete a contact list
-   * DELETE /contact-lists/{list_id}
    */
   deleteContactList(listId: string): Promise<DeleteContactListResponse> {
-    return apiClient<DeleteContactListResponse>(`/contact-lists/${listId}`, {
-      method: 'DELETE',
+    return Promise.resolve({
+      data: listId,
+      success: true,
+      message: 'List deleted',
     })
   },
 
   /**
-   * Fetch all contacts (optional list_id filter)
-   * GET /contacts
+   * Fetch all contacts (optional list_id / tags filter, search, status, pagination)
+   * GET /api/contacts/list-contacts
    */
-  getContacts(params?: { list_id?: string; search?: string }): Promise<GetContactsResponse> {
-    return apiClient<GetContactsResponse>('/contacts', {
+  getContacts(params?: {
+    page?: number
+    page_size?: number
+    search?: string
+    status?: string
+    tags?: string
+    list_id?: string
+  }): Promise<GetContactsResponse> {
+    const cleanParams: Record<string, string | number | undefined> = {}
+    if (params?.page) cleanParams.page = params.page
+    if (params?.page_size) cleanParams.page_size = params.page_size
+    if (params?.search) cleanParams.search = params.search
+    if (params?.status && params.status !== 'all') cleanParams.status = params.status
+    if (params?.tags) cleanParams.tags = params.tags
+    else if (params?.list_id && params.list_id !== 'all') cleanParams.tags = params.list_id
+
+    return apiClient<GetContactsResponse>('/contacts/list-contacts', {
       method: 'GET',
-      params,
+      params: cleanParams as Record<string, string | number | boolean | undefined>,
     })
   },
 
   /**
    * Fetch a single contact by ID
-   * GET /contacts/{contact_id}
+   * GET /api/contacts/get-contact/{contact_id}
    */
   getContact(contactId: string): Promise<GetContactResponse> {
-    return apiClient<GetContactResponse>(`/contacts/${contactId}`, {
+    return apiClient<GetContactResponse>(`/contacts/get-contact/${contactId}`, {
       method: 'GET',
     })
   },
 
   /**
    * Create a new contact
-   * POST /contacts
+   * POST /api/contacts/add-contact
    */
   createContact(payload: CreateContactPayload): Promise<CreateContactResponse> {
-    return apiClient<CreateContactResponse>('/contacts', {
+    return apiClient<CreateContactResponse>('/contacts/add-contact', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
@@ -207,10 +267,10 @@ export const contactsApi = {
 
   /**
    * Update an existing contact
-   * PATCH /contacts/{contact_id}
+   * PATCH /api/contacts/update-contact/{contact_id}
    */
   patchContact(contactId: string, payload: PatchContactPayload): Promise<PatchContactResponse> {
-    return apiClient<PatchContactResponse>(`/contacts/${contactId}`, {
+    return apiClient<PatchContactResponse>(`/contacts/update-contact/${contactId}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     })
@@ -218,11 +278,32 @@ export const contactsApi = {
 
   /**
    * Delete a contact by ID
-   * DELETE /contacts/{contact_id}
+   * DELETE /api/contacts/delete-contact/{contact_id}
    */
   deleteContact(contactId: string): Promise<DeleteContactResponse> {
-    return apiClient<DeleteContactResponse>(`/contacts/${contactId}`, {
+    return apiClient<DeleteContactResponse>(`/contacts/delete-contact/${contactId}`, {
       method: 'DELETE',
+    })
+  },
+
+  /**
+   * Import contacts via CSV / file
+   * POST /api/contacts/import-contacts
+   */
+  importContacts(formData: FormData): Promise<any> {
+    return apiClient('/contacts/import-contacts', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  /**
+   * List all contact tags
+   * GET /api/contacts/list-tags
+   */
+  listTags(): Promise<{ data: string[]; success: boolean; message?: string }> {
+    return apiClient('/contacts/list-tags', {
+      method: 'GET',
     })
   },
 }

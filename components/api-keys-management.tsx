@@ -290,7 +290,7 @@ export function ApiKeysManagement({
 
   // Quick start code snippets requested by user
   const codeSnippets: Record<CodeLanguage, string> = {
-    cURL: `curl "$API_URL/api/mails/send" \\
+    cURL: `curl "$API_URL/api/mails/send-mail" \\
   -H "Authorization: Bearer $MAILER_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -299,7 +299,7 @@ export function ApiKeysManagement({
     "subject": "Your server is ready",
     "html": "<p>Your VPS <b>vps-sg-142</b> is online.</p>"
   }'`,
-    'Node.js': `const res = await fetch(\`\${process.env.API_URL}/api/mails/send\`, {
+    'Node.js': `const res = await fetch(\`\${process.env.API_URL}/api/mails/send-mail\`, {
   method: "POST",
   headers: {
     Authorization: \`Bearer \${process.env.MAILER_API_KEY}\`,
@@ -315,7 +315,7 @@ export function ApiKeysManagement({
     Python: `import os, requests
 
 requests.post(
-    f"{os.environ['API_URL']}/api/mails/send",
+    f"{os.environ['API_URL']}/api/mails/send-mail",
     headers={"Authorization": f"Bearer {os.environ['MAILER_API_KEY']}"},
     json={
         "from_email": "no-reply@yourdomain.com",
