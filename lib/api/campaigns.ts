@@ -3,13 +3,16 @@ import { apiClient } from '@/lib/api-client'
 export type CampaignStatus = 'draft' | 'sending' | 'sent' | string
 
 export interface CampaignStats {
-  total?: number
+  recipients?: number
+  queued?: number
   sent?: number
+  deferred?: number
   delivered?: number
-  opened?: number
-  clicked?: number
   bounced?: number
   failed?: number
+  total?: number
+  opened?: number
+  clicked?: number
 }
 
 export interface CampaignItem {

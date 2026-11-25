@@ -27,8 +27,10 @@ import { EmailLogsPage } from '@/components/email-logs-page'
 import { MessageDetailPage } from '@/components/message-detail-page'
 import { StatusBadge } from '@/components/status-badge'
 import { useDomainsQuery } from '@/lib/hooks/use-domains-query'
+import { useCampaignsQuery } from '@/lib/hooks/use-campaigns-query'
 import { ApiKeysManagement } from '@/components/api-keys-management'
 import { ContactsManagement } from '@/components/contacts-management'
+import { CampaignsManagement, extractCampaigns } from '@/components/campaigns-management'
 
 type Props = { route: string; search: string; setSearch: (value: string) => void; onAction: (message: string) => void; onOpenAction: (action: 'contact' | 'key' | 'domain' | 'list' | 'form' | 'attribute' | 'ticket' | null) => void; completed: string[]; onToggleChecklist: (id: string) => void; customRows: MockRow[]; onImportRows: (rows: MockRow[]) => void; onCreateRows: (rows: MockRow[]) => void }
 const titles: Record<string, [string, string]> = {
@@ -121,6 +123,7 @@ export function DashboardContent(props: Props) {
   if (route === 'inbound-routes' || route === 'transactional/inbound') return <InboundRoutesBuilder onAction={onAction} />
   if (route === 'campaigns/sms') return <MultiChannelBuilder initialChannel="sms" onAction={onAction} />
   if (route === 'campaigns/whatsapp') return <MultiChannelBuilder initialChannel="whatsapp" onAction={onAction} />
+  if (route === 'campaigns' || route.startsWith('campaigns/')) return <CampaignsManagement route={route} onAction={onAction} />
   if (route === 'automations/create' || route === 'automations/builder') return <AutomationVisualCanvas onAction={onAction} />
   if (hasDashboardExtraPage(route)) return <DashboardExtraPage route={route} search={search} setSearch={setSearch} onAction={onAction} onOpenTicket={() => onOpenAction('ticket')} />
   if (route === 'contacts/import') return <ContactImportPage onAction={onAction} onImport={onImportRows} />
@@ -139,9 +142,7 @@ export function DashboardContent(props: Props) {
     }
     return <EmailLogsPage route={route} onAction={onAction} />
   }
-  if (route.startsWith('campaigns/') && route.endsWith('/report')) return <CampaignReportPage route={route} onAction={onAction} customRows={customRows} />
   if (route.startsWith('contacts/') && !['lists', 'segments', 'import', 'forms', 'attributes', 'unsubscribed', 'blocklisted'].includes(route.split('/')[1])) return <ContactDetailPage route={route} onAction={onAction} customRows={customRows} />
-  if (route === 'campaigns/create') return <CampaignBuilder step={campaignStep} setStep={setCampaignStep} name={campaignName} setName={setCampaignName} onComplete={completeCampaign} onAction={onAction} abTestEnabled={abTestEnabled} setAbTestEnabled={setAbTestEnabled} />
   if (route === 'automations/create') return <WorkflowBuilder running={workflowRunning} setRunning={setWorkflowRunning} onAction={onAction} />
   if (route.startsWith('settings')) return <SettingsPage route={route} selectedTab={selectedSettingsTab} setSelectedTab={setSelectedSettingsTab} onAction={onAction} saved={saved} setSaved={setSaved} showPassword={showPassword} setShowPassword={setShowPassword} />
   if (route.startsWith('domains')) return <DomainsManagement route={route} onAction={onAction} copiedRecord={copiedRecord} copyText={copyText} />
@@ -343,6 +344,20 @@ function Overview({ onAction, onOpenAction, completed, onToggleChecklist, select
   const { data: domainsResponse } = useDomainsQuery()
   const liveDomains = domainsResponse?.data ?? []
 
+  const { data: campaignsResponse, isLoading: isLoadingCampaigns } = useCampaignsQuery({ page_size: 5 })
+  const liveCampaigns = useMemo(() => extractCampaigns(campaignsResponse), [campaignsResponse])
+
+  const formatCampaignDate = (dateStr?: string | null) => {
+    if (!dateStr) return 'Recent'
+    try {
+      const d = new Date(dateStr)
+      if (isNaN(d.getTime())) return dateStr
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    } catch {
+      return dateStr
+    }
+  }
+
   const displayDomains = liveDomains.length > 0
     ? liveDomains.slice(0, 3)
     : [
@@ -363,7 +378,100 @@ function Overview({ onAction, onOpenAction, completed, onToggleChecklist, select
     <section className="metrics-grid">{statCards.map((stat, index) => <article className="metric-card" key={stat.label}><div className="metric-card-head"><span>{stat.label}</span><span className={`metric-icon metric-icon-${index}`}>{index === 0 ? <Send /> : index === 1 ? <CircleCheck /> : index === 2 ? <Mail /> : <MousePointerClick />}</span></div><div className="metric-number">{stat.value}</div><div className="metric-foot"><span className="metric-change"><ArrowUpRight size={13} />{stat.change}</span><span>{stat.note}</span></div><div className={`metric-spark spark-${index}`}><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></article>)}</section>
     <section className="overview-grid"><article className="dashboard-panel chart-panel"><div className="panel-heading"><div><h2>Email performance</h2><p>Delivery and engagement over time</p></div><div className="chart-legend"><button className={activeMetric === 'delivered' ? 'legend-active' : ''} onClick={() => setActiveMetric('delivered')}><i className="legend-blue" />Delivered</button><button className={activeMetric === 'opened' ? 'legend-active' : ''} onClick={() => setActiveMetric('opened')}><i className="legend-cyan" />Opens</button><button className={activeMetric === 'clicked' ? 'legend-active' : ''} onClick={() => setActiveMetric('clicked')}><i className="legend-purple" />Clicks</button></div></div><div className="chart-summary"><b>38,492</b><span>total events</span><em><ArrowUpRight size={13} /> 14.2%</em><small>vs. previous period</small></div><div className="main-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 10, right: 10, left: -22, bottom: 0 }}><defs><linearGradient id="deliveryGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#1677f9" stopOpacity={0.16} /><stop offset="100%" stopColor="#1677f9" stopOpacity={0} /></linearGradient></defs><CartesianGrid stroke="#edf1f6" vertical={false} /><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#98a2b3', fontSize: 11 }} dy={10} /><YAxis axisLine={false} tickLine={false} tick={{ fill: '#98a2b3', fontSize: 11 }} /><Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e7ecf2', boxShadow: '0 8px 24px #16324f12' }} /><Area type="monotone" dataKey={activeMetric} stroke={activeMetric === 'delivered' ? '#146ef5' : activeMetric === 'opened' ? '#0fb6d8' : '#8758e8'} strokeWidth={2.5} fill="url(#deliveryGradient)" activeDot={{ r: 5 }} /></AreaChart></ResponsiveContainer></div><div className="chart-footer"><span><i className="status-dot green-dot" /> Sending normally</span><button onClick={() => { window.location.href = '/app/analytics' }}>View analytics <ArrowRight size={13} /></button></div></article>
       <article className="dashboard-panel checklist-panel"><div className="panel-heading"><div><h2>Getting started</h2><p>A few steps to set up your workspace</p></div><span className="checklist-count">{completed.length}/{checklist.length}</span></div><div className="setup-progress"><span style={{ width: `${completed.length / checklist.length * 100}%` }} /></div><div className="checklist-items">{checklist.map(([id, label, note, href]) => { const done = completed.includes(id); return <div className={`checklist-item ${done ? 'checklist-done' : ''}`} key={id}><button aria-label={`${done ? 'Mark incomplete' : 'Mark complete'}: ${label}`} onClick={() => onToggleChecklist(id)} className="checklist-check">{done && <Check size={12} />}</button><Link href={href}><b>{label}</b><small>{done ? 'Completed' : note}</small></Link><Link href={href} className="checklist-arrow" aria-label={`Go to ${label}`}><ArrowRight size={15} /></Link></div> })}</div><button className="checklist-help" onClick={() => onAction('Getting started guide opened.')}>View setup guide <ArrowRight size={13} /></button></article></section>
-    <section className="overview-lower-grid"><article className="dashboard-panel recent-panel"><div className="panel-heading"><div><h2>Recent campaigns</h2><p>How your latest sends are performing</p></div><Link href="/app/campaigns">All campaigns <ArrowRight size={13} /></Link></div><div className="recent-campaign-list"><div><span className="campaign-type-icon"><Mail size={16} /></span><span><b>November product notes</b><small>Sent Nov 12 · 8,420 recipients</small></span><span className="campaign-open-rate"><b>42.8%</b><small>open rate</small></span><span className="campaign-action"><ArrowUpRight size={15} /></span></div><div><span className="campaign-type-icon campaign-type-cyan"><Sparkles size={16} /></span><span><b>Fall collection is here</b><small>Sent Nov 08 · 12,208 recipients</small></span><span className="campaign-open-rate"><b>38.2%</b><small>open rate</small></span><span className="campaign-action"><ArrowUpRight size={15} /></span></div><div><span className="campaign-type-icon campaign-type-purple"><Workflow size={16} /></span><span><b>New customer welcome</b><small>Automation · 1,204 enrolled</small></span><span className="campaign-open-rate"><b>56.4%</b><small>open rate</small></span><span className="campaign-action"><ArrowUpRight size={15} /></span></div></div></article><article className="dashboard-panel domain-health-panel"><div className="panel-heading"><div><div className="health-panel-eyebrow"><ShieldCheck size={14} /> REPUTATION &amp; DELIVERABILITY</div><h2>Sending health</h2><p>Authentication &amp; reputation across your sending domains</p></div><button className="panel-more" aria-label="Domain health options" onClick={() => onAction('Domain health options opened.')}>···</button></div><div className="health-score-row"><div className="health-meter"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r={radius} className="meter-bg" /><circle className="health-meter-value" cx="50" cy="50" r={radius} style={{ strokeDasharray: circumference, strokeDashoffset }} /></svg><span className="health-meter-score">{healthScore}</span></div><div className="health-score-details"><b className="health-rating-title">{healthLabel}</b><small className="health-rating-sub">Reputation is healthy &amp; trusted</small><span className="health-trend"><ArrowUpRight size={14} /> +2.4% deliverability</span></div></div><div className="domain-health-list">{displayDomains.map((domain) => (<Link href="/app/domains" key={domain.id} className="domain-health-item"><div className="domain-item-left"><span className={`domain-icon ${domain.is_verified ? 'domain-icon-verified' : 'domain-icon-warn'}`}>{domain.is_verified ? <ShieldCheck size={18} /> : <Globe2 size={18} />}</span><div className="domain-item-meta"><b className="domain-name-text">{domain.name}</b><small className="domain-status-note">{domain.is_verified ? 'SPF, DKIM & DMARC Authenticated' : 'DNS Verification Pending'}</small></div></div><StatusBadge status={domain.is_verified ? 'Verified' : 'Action needed'} /></Link>))}</div><Link href="/app/domains" className="domain-health-link"><span>Manage sending domains</span><ArrowRight size={15} /></Link></article></section>
+    <section className="overview-lower-grid"><article className="dashboard-panel recent-panel"><div className="panel-heading"><div><h2>Recent campaigns</h2><p>How your latest sends are performing</p></div><Link href="/app/campaigns">All campaigns {liveCampaigns.length > 0 ? `(${liveCampaigns.length})` : ''} <ArrowRight size={13} /></Link></div>
+      {isLoadingCampaigns ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
+          {[1, 2, 3].map((n) => (
+            <div key={n} style={{ display: 'grid', gridTemplateColumns: '30px minmax(0, 1fr) auto 20px', alignItems: 'center', gap: '9px', padding: '10px 4px', borderBottom: n < 3 ? '1px solid #f0f2f5' : 'none' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#f1f5f9' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                <div style={{ width: '55%', height: 14, borderRadius: 4, background: '#f1f5f9' }} />
+                <div style={{ width: '35%', height: 11, borderRadius: 4, background: '#f8fafc' }} />
+              </div>
+              <div style={{ width: 52, height: 20, borderRadius: 999, background: '#f1f5f9' }} />
+              <div style={{ width: 14, height: 14, borderRadius: 4, background: '#f1f5f9' }} />
+            </div>
+          ))}
+        </div>
+      ) : liveCampaigns.length === 0 ? (
+        <div style={{ padding: '24px 16px', textAlign: 'center', background: '#f8fafc', borderRadius: '10px', marginTop: '12px', border: '1px dashed #e2e8f0' }}>
+          <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#eef5ff', color: '#176ef5', display: 'grid', placeItems: 'center', margin: '0 auto 10px' }}>
+            <Mail size={18} />
+          </div>
+          <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 650, color: '#334155' }}>No campaigns yet</p>
+          <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#64748b' }}>Create your first email campaign to reach and engage your audience.</p>
+          <Link href="/app/campaigns/create" className="button button-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', padding: '6px 14px' }}>
+            <Plus size={14} /> Create campaign
+          </Link>
+        </div>
+      ) : (
+        <div className="recent-campaign-list">
+          {liveCampaigns.slice(0, 4).map((campaign, idx) => {
+            const isSent = campaign.status === 'sent'
+            const isSending = campaign.status === 'sending'
+            const isDraft = campaign.status === 'draft'
+
+            const recipientCount = campaign.stats?.delivered ?? campaign.stats?.total ?? 0
+            const openRate = campaign.stats?.total
+              ? Math.round(((campaign.stats?.opened ?? 0) / campaign.stats.total) * 100)
+              : (campaign.stats?.delivered ? Math.round(((campaign.stats?.opened ?? 0) / campaign.stats.delivered) * 100) : 0)
+
+            let subtitle = ''
+            if (isSent) {
+              subtitle = `Sent ${formatCampaignDate(campaign.sent_at || campaign.created_at)}${recipientCount > 0 ? ` · ${recipientCount.toLocaleString()} recipients` : ''}`
+            } else if (isSending) {
+              subtitle = `Sending in progress${recipientCount > 0 ? ` · ${recipientCount.toLocaleString()} recipients` : ''}`
+            } else if (isDraft) {
+              subtitle = campaign.subject ? `Draft · ${campaign.subject}` : `Draft · Edited ${formatCampaignDate(campaign.updated_at || campaign.created_at)}`
+            } else {
+              subtitle = `${campaign.status} · ${formatCampaignDate(campaign.created_at)}`
+            }
+
+            const iconClass = isSending
+              ? 'campaign-type-icon campaign-type-cyan'
+              : isDraft
+              ? 'campaign-type-icon campaign-type-purple'
+              : 'campaign-type-icon'
+
+            const href = isDraft ? '/app/campaigns' : `/app/campaigns/${campaign.id}/report`
+
+            return (
+              <Link
+                key={campaign.id || idx}
+                href={href}
+                className="recent-campaign-row-link"
+                title={`View ${campaign.name || 'campaign'}`}
+              >
+                <span className={iconClass}>
+                  {isSending ? <Send size={15} /> : isDraft ? <Pencil size={15} /> : <Mail size={16} />}
+                </span>
+                <span>
+                  <b style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {campaign.name || 'Untitled campaign'}
+                  </b>
+                  <small style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {subtitle}
+                  </small>
+                </span>
+                <span className="campaign-open-rate">
+                  {isSent && (campaign.stats?.opened !== undefined || openRate > 0) ? (
+                    <>
+                      <b>{openRate}%</b>
+                      <small>open rate</small>
+                    </>
+                  ) : (
+                    <StatusBadge status={isSent ? 'Sent' : isSending ? 'Sending' : isDraft ? 'Draft' : campaign.status} />
+                  )}
+                </span>
+                <span className="campaign-action">
+                  <ArrowUpRight size={15} />
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </article><article className="dashboard-panel domain-health-panel"><div className="panel-heading"><div><div className="health-panel-eyebrow"><ShieldCheck size={14} /> REPUTATION &amp; DELIVERABILITY</div><h2>Sending health</h2><p>Authentication &amp; reputation across your sending domains</p></div><button className="panel-more" aria-label="Domain health options" onClick={() => onAction('Domain health options opened.')}>···</button></div><div className="health-score-row"><div className="health-meter"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r={radius} className="meter-bg" /><circle className="health-meter-value" cx="50" cy="50" r={radius} style={{ strokeDasharray: circumference, strokeDashoffset }} /></svg><span className="health-meter-score">{healthScore}</span></div><div className="health-score-details"><b className="health-rating-title">{healthLabel}</b><small className="health-rating-sub">Reputation is healthy &amp; trusted</small><span className="health-trend"><ArrowUpRight size={14} /> +2.4% deliverability</span></div></div><div className="domain-health-list">{displayDomains.map((domain) => (<Link href="/app/domains" key={domain.id} className="domain-health-item"><div className="domain-item-left"><span className={`domain-icon ${domain.is_verified ? 'domain-icon-verified' : 'domain-icon-warn'}`}>{domain.is_verified ? <ShieldCheck size={18} /> : <Globe2 size={18} />}</span><div className="domain-item-meta"><b className="domain-name-text">{domain.name}</b><small className="domain-status-note">{domain.is_verified ? 'SPF, DKIM & DMARC Authenticated' : 'DNS Verification Pending'}</small></div></div><StatusBadge status={domain.is_verified ? 'Verified' : 'Action needed'} /></Link>))}</div><Link href="/app/domains" className="domain-health-link"><span>Manage sending domains</span><ArrowRight size={15} /></Link></article></section>
     <section className="quick-actions-row"><div><span className="quick-actions-icon"><Sparkles size={16} /></span><span><b>Ready to make your next move?</b><small>Everything you need to keep your email program growing.</small></span></div><button onClick={() => onOpenAction('contact')}><Plus size={15} /> Add a contact</button><button onClick={() => { window.location.href = '/app/campaigns/create' }}><Send size={15} /> Create a campaign</button><button onClick={() => window.location.href = '/app/api-keys/docs'}><Braces size={15} /> Explore the API</button></section>
   </>
 }
@@ -394,7 +502,7 @@ function CampaignReportPage({ route, onAction, customRows }: { route: string; on
 
 function CampaignBuilder({ step, setStep, name, setName, onComplete, onAction, abTestEnabled, setAbTestEnabled }: { step: number; setStep: (step: number) => void; name: string; setName: (name: string) => void; onComplete: () => void; onAction: (message: string) => void; abTestEnabled: boolean; setAbTestEnabled: (enabled: boolean) => void }) {
   const labels = ['Campaign details', 'Choose recipients', 'Design your email', 'Review & schedule']
-  return <div className="campaign-builder-page"><div className="page-heading-row"><div><div className="page-eyebrow">CAMPAIGNS <span>/</span> NEW CAMPAIGN</div><h1>Create a campaign</h1><p>Let’s get your next message ready to send.</p></div><Link className="button button-secondary" href="/app/campaigns">Save and exit</Link></div><div className="campaign-stepper">{labels.map((label, index) => <button key={label} className={index === step ? 'step-current' : index < step ? 'step-complete' : ''} onClick={() => index <= step && setStep(index)}><span>{index < step ? <Check size={14} /> : `0${index + 1}`}</span><b>{label}</b></button>)}</div><section className={`builder-card ${step === 2 ? 'builder-card-fullscreen' : ''}`}><div className={`builder-main ${step === 2 ? 'builder-main-fullscreen' : ''}`}><div className="eyebrow">STEP 0{step + 1} OF 04</div><h2>{labels[step]}</h2><p>{step === 0 ? 'Give this campaign a name and set the essential details.' : step === 1 ? 'Choose who should receive this message.' : step === 2 ? 'Arrange content blocks and preview your email on desktop or mobile.' : 'Review your campaign before you save it.'}</p>{step === 0 && <div className="builder-fields"><label>Campaign name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. November product update" /></label><label>Subject line<input defaultValue="A few things we’ve been working on" placeholder="Write a clear subject line" /></label><label>Preview text<input defaultValue="The latest from the MetroVPS team." placeholder="A short preview after your subject" /></label><label>Sender<select defaultValue="MetroVPS team <hello@updates.metrovps.com>"><option>MetroVPS team &lt;hello@updates.metrovps.com&gt;</option><option>Product updates &lt;product@metrovps.com&gt;</option></select></label><label className="toggle-field"><span><b>A/B test subject lines</b><small>Compare two subject lines with a sample audience.</small></span><input type="checkbox" checked={abTestEnabled} onChange={(event) => setAbTestEnabled(event.target.checked)} /></label></div>}{step === 1 && <div className="audience-choice-list">{[['All active contacts', '24,806 contacts', 'All subscribed contacts in your workspace'], ['Engaged customers', '8,204 contacts', 'Opened or clicked in the last 90 days'], ['New subscribers', '4,420 contacts', 'Joined your audience in the last 30 days']].map(([label, count, note]) => <label key={label}><input type="radio" name="audience" defaultChecked={label === 'Engaged customers'} /><span><b>{label}</b><small>{note}</small></span><strong>{count}</strong></label>)}</div>}{step === 2 && <EmailEditor onAction={onAction} subject={name || 'A few things we’ve been working on'} />}{step === 3 && <div className="review-summary"><div><span>Campaign</span><b>{name || 'Untitled campaign'}</b></div><div><span>Recipients</span><b>Engaged customers · 8,204 contacts</b></div><div><span>Subject</span><b>A few things we’ve been working on</b></div><div><span>Schedule</span><b>Send now or schedule for later</b></div><button onClick={() => onAction('Schedule options opened for this draft.')}>Choose a send time <ChevronDown size={14} /></button></div>}<div className="builder-actions">{step > 0 && <button className="button button-secondary" onClick={() => setStep(step - 1)}>Back</button>}<span />{step < 3 ? <button className="button button-primary" onClick={() => setStep(step + 1)}>Continue <ArrowRight size={15} /></button> : <button className="button button-primary" onClick={onComplete}>Save campaign draft <Check size={15} /></button>}</div></div>{step !== 2 && <aside className="builder-aside"><span className="builder-aside-icon"><Sparkles size={18} /></span><h3>A thoughtful send starts with a clear goal.</h3><p>Choose an audience that expects to hear from you. Keep your subject line focused and your content useful.</p><div className="builder-aside-tip"><ShieldCheck size={15} /><span><b>Good to know</b><small>Only send to contacts who have opted in.</small></span></div><Link href="/app/contacts/segments">Explore audience segments <ArrowRight size={13} /></Link></aside>}</section>{step === 2 && <div className="builder-guidance-banner"><div className="guidance-banner-left"><span className="builder-aside-icon"><Sparkles size={20} /></span><div className="guidance-banner-text"><h3>A thoughtful send starts with a clear goal.</h3><p>Choose an audience that expects to hear from you. Keep your subject line focused, your content readable, and your call-to-actions prominent.</p></div></div><div className="guidance-banner-right"><div className="builder-aside-tip"><ShieldCheck size={16} /><span><b>Good to know</b><small>Only send to contacts who have opted in.</small></span></div><Link href="/app/contacts/segments" className="button button-secondary">Explore audience segments <ArrowRight size={14} /></Link></div></div>}</div>
+  return <div className="campaign-builder-page"><div className="page-heading-row"><div><div className="page-eyebrow">CAMPAIGNS <span>/</span> NEW CAMPAIGN</div><h1>Create a campaign</h1><p>Let’s get your next message ready to send.</p></div><Link className="button button-secondary" href="/app/campaigns">Save and exit</Link></div><div className="campaign-stepper">{labels.map((label, index) => <button key={label} className={index === step ? 'step-current' : index < step ? 'step-complete' : ''} onClick={() => index <= step && setStep(index)}><span>{index < step ? <Check size={14} /> : `0${index + 1}`}</span><b>{label}</b></button>)}</div><section className={`builder-card ${step === 2 ? 'builder-card-fullscreen' : ''}`}><div className={`builder-main ${step === 2 ? 'builder-main-fullscreen' : ''}`}><div className="eyebrow">STEP 0{step + 1} OF 04</div><h2>{labels[step]}</h2><p>{step === 0 ? 'Give this campaign a name and set the essential details.' : step === 1 ? 'Choose who should receive this message.' : step === 2 ? 'Arrange content blocks and preview your email on desktop or mobile.' : 'Review your campaign before you save it.'}</p>{step === 0 && <div className="builder-fields"><label>Campaign name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. November product update" /></label><label>Subject line<input defaultValue="A few things we’ve been working on" placeholder="Write a clear subject line" /></label><label>Preview text<input defaultValue="The latest from the MetroVPS team." placeholder="A short preview after your subject" /></label><label>Sender<select defaultValue="MetroVPS team <hello@updates.metrovps.com>"><option>MetroVPS team &lt;hello@updates.metrovps.com&gt;</option><option>Product updates &lt;product@metrovps.com&gt;</option></select></label><label className="toggle-field"><span><b>A/B test subject lines</b><small>Compare two subject lines with a sample audience.</small></span><input type="checkbox" checked={abTestEnabled} onChange={(event) => setAbTestEnabled(event.target.checked)} /></label></div>}{step === 1 && <div className="audience-choice-list">{[['All active contacts', '24,806 contacts', 'All subscribed contacts in your workspace'], ['Engaged customers', '8,204 contacts', 'Opened or clicked in the last 90 days'], ['New subscribers', '4,420 contacts', 'Joined your audience in the last 30 days']].map(([label, count, note]) => <label key={label}><input type="radio" name="audience" defaultChecked={label === 'Engaged customers'} /><span><b>{label}</b><small>{note}</small></span><strong>{count}</strong></label>)}</div>}{step === 2 && <EmailEditor startEmpty onAction={onAction} subject={name || 'A few things we’ve been working on'} />}{step === 3 && <div className="review-summary"><div><span>Campaign</span><b>{name || 'Untitled campaign'}</b></div><div><span>Recipients</span><b>Engaged customers · 8,204 contacts</b></div><div><span>Subject</span><b>A few things we’ve been working on</b></div><div><span>Schedule</span><b>Send now or schedule for later</b></div><button onClick={() => onAction('Schedule options opened for this draft.')}>Choose a send time <ChevronDown size={14} /></button></div>}<div className="builder-actions">{step > 0 && <button className="button button-secondary" onClick={() => setStep(step - 1)}>Back</button>}<span />{step < 3 ? <button className="button button-primary" onClick={() => setStep(step + 1)}>Continue <ArrowRight size={15} /></button> : <button className="button button-primary" onClick={onComplete}>Save campaign draft <Check size={15} /></button>}</div></div>{step !== 2 && <aside className="builder-aside"><span className="builder-aside-icon"><Sparkles size={18} /></span><h3>A thoughtful send starts with a clear goal.</h3><p>Choose an audience that expects to hear from you. Keep your subject line focused and your content useful.</p><div className="builder-aside-tip"><ShieldCheck size={15} /><span><b>Good to know</b><small>Only send to contacts who have opted in.</small></span></div><Link href="/app/contacts/segments">Explore audience segments <ArrowRight size={13} /></Link></aside>}</section>{step === 2 && <div className="builder-guidance-banner"><div className="guidance-banner-left"><span className="builder-aside-icon"><Sparkles size={20} /></span><div className="guidance-banner-text"><h3>A thoughtful send starts with a clear goal.</h3><p>Choose an audience that expects to hear from you. Keep your subject line focused, your content readable, and your call-to-actions prominent.</p></div></div><div className="guidance-banner-right"><div className="builder-aside-tip"><ShieldCheck size={16} /><span><b>Good to know</b><small>Only send to contacts who have opted in.</small></span></div><Link href="/app/contacts/segments" className="button button-secondary">Explore audience segments <ArrowRight size={14} /></Link></div></div>}</div>
 }
 
 

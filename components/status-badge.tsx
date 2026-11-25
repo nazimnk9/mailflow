@@ -11,6 +11,7 @@ export function StatusBadge({ status }: { status: string | unknown }) {
   const tone =
     lower.includes('verified') ||
     lower.includes('delivered') ||
+    lower.includes('sent') ||
     lower.includes('paid') ||
     lower.includes('active') ||
     lower.includes('subscribed') ||
@@ -27,7 +28,7 @@ export function StatusBadge({ status }: { status: string | unknown }) {
         lower.includes('failed') ||
         lower.includes('rejected')
       ? 'status-warn'
-      : lower.includes('revoked') || lower.includes('paused')
+      : lower.includes('revoked') || lower.includes('paused') || lower.includes('draft')
       ? 'status-muted'
       : 'status-blue'
 
