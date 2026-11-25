@@ -1,246 +1,127 @@
 import { apiClient } from '@/lib/api-client'
 
-export interface ContactListItem {
-  id: string
-  name: string
-  description: string
-  contact_count: number
-  created_at: string
-  updated_at: string
-}
-
-export interface CreateContactListPayload {
-  name: string
-  description?: string
-}
-
-export interface PatchContactListPayload {
-  name: string
-  description?: string
-}
-
-export interface GetContactListsResponse {
-  data: ContactListItem[]
-  success: boolean
-  message: string
-  errors?: string
-}
-
-export interface GetContactListResponse {
-  data: ContactListItem
-  success: boolean
-  message: string
-  errors?: string
-}
-
-export interface CreateContactListResponse {
-  data: ContactListItem
-  success: boolean
-  message: string
-  errors?: string
-}
-
-export interface PatchContactListResponse {
-  data: ContactListItem
-  success: boolean
-  message: string
-  errors?: string
-}
-
-export interface DeleteContactListResponse {
-  success: boolean
-  message: string
-  errors?: string
-}
+export type ContactStatus = 'subscribed' | 'unsubscribed' | string
 
 export interface ContactItem {
   id: string
   email: string
   first_name: string
   last_name: string
-  attributes?: string
-  status: 'subscribed' | 'unsubscribed' | 'pending' | 'cleaned' | string
-  lists: string[]
+  attributes?: Record<string, unknown>
+  tags: string[]
+  status: ContactStatus
   created_at: string
   updated_at: string
+}
+
+export interface PaginatedContactsData {
+  items: ContactItem[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export interface GetContactsParams {
+  page?: number
+  page_size?: number
+  search?: string
+  status?: string
+  tags?: string
+}
+
+export interface GetContactsResponse {
+  success: boolean
+  message: string | null
+  data: PaginatedContactsData
+  errors?: unknown
+}
+
+export interface GetContactResponse {
+  success: boolean
+  message: string | null
+  data: ContactItem
+  errors?: unknown
 }
 
 export interface CreateContactPayload {
   email: string
   first_name?: string
   last_name?: string
-  attributes?: string
-  status?: string
-  lists?: string[]
+  attributes?: Record<string, unknown>
+  tags?: string[]
+}
+
+export interface CreateContactResponse {
+  success: boolean
+  message: string | null
+  data: ContactItem
+  errors?: unknown
 }
 
 export interface PatchContactPayload {
   email?: string
   first_name?: string
   last_name?: string
-  attributes?: string
-  status?: string
-  lists?: string[]
-}
-
-export interface GetContactsResponse {
-  data: ContactItem[]
-  success: boolean
-  message: string
-  errors?: string
-}
-
-export interface GetContactResponse {
-  data: ContactItem
-  success: boolean
-  message: string
-  errors?: string
-}
-
-export interface CreateContactResponse {
-  data: ContactItem
-  success: boolean
-  message: string
-  errors?: string
+  attributes?: Record<string, unknown>
+  tags?: string[]
+  status?: ContactStatus
 }
 
 export interface PatchContactResponse {
-  data: ContactItem
   success: boolean
-  message: string
-  errors?: string
+  message: string | null
+  data: ContactItem
+  errors?: unknown
 }
 
 export interface DeleteContactResponse {
   success: boolean
-  message: string
-  errors?: string
+  message: string | null
+  data: null
+  errors?: unknown
+}
+
+export interface ImportContactsResult {
+  created: number
+  existing: number
+  invalid: number
+}
+
+export interface ImportContactsResponse {
+  success: boolean
+  message: string | null
+  data: ImportContactsResult | null
+  errors?: unknown
+}
+
+export interface ListTagsResponse {
+  success: boolean
+  message: string | null
+  data: string[]
+  errors?: unknown
 }
 
 export const contactsApi = {
   /**
-   * Fetch all contact lists (mapped from backend tags)
-   * GET /api/contacts/list-tags
-   */
-  async getContactLists(): Promise<GetContactListsResponse> {
-    try {
-      const res = await apiClient<{ data: string[]; success: boolean; message?: string }>('/contacts/list-tags', {
-        method: 'GET',
-      })
-      const tags = Array.isArray(res?.data) ? res.data : []
-      const lists: ContactListItem[] = tags.map((tag) => ({
-        id: tag,
-        name: tag,
-        description: `Tag: ${tag}`,
-        contact_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }))
-      return {
-        data: lists,
-        success: true,
-        message: res.message || 'Lists fetched',
-      }
-    } catch {
-      return {
-        data: [],
-        success: true,
-        message: 'No lists found',
-      }
-    }
-  },
-
-  /**
-   * Fetch single contact list by ID (tag)
-   */
-  getContactList(listId: string): Promise<GetContactListResponse> {
-    return Promise.resolve({
-      data: {
-        id: listId,
-        name: listId,
-        description: `Tag: ${listId}`,
-        contact_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      success: true,
-      message: 'List details',
-    })
-  },
-
-  /**
-   * Create a new contact list
-   */
-  createContactList(payload: CreateContactListPayload): Promise<CreateContactListResponse> {
-    return Promise.resolve({
-      data: {
-        id: payload.name,
-        name: payload.name,
-        description: payload.description || '',
-        contact_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      success: true,
-      message: 'List created',
-    })
-  },
-
-  /**
-   * Update a contact list
-   */
-  patchContactList(
-    listId: string,
-    payload: PatchContactListPayload
-  ): Promise<PatchContactListResponse> {
-    return Promise.resolve({
-      data: {
-        id: listId,
-        name: payload.name || listId,
-        description: payload.description || '',
-        contact_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      success: true,
-      message: 'List updated',
-    })
-  },
-
-  /**
-   * Delete a contact list
-   */
-  deleteContactList(listId: string): Promise<DeleteContactListResponse> {
-    return Promise.resolve({
-      data: listId,
-      success: true,
-      message: 'List deleted',
-    })
-  },
-
-  /**
-   * Fetch all contacts (optional list_id / tags filter, search, status, pagination)
+   * Fetch paginated contacts with optional search, status, and tags filter
    * GET /api/contacts/list-contacts
    */
-  getContacts(params?: {
-    page?: number
-    page_size?: number
-    search?: string
-    status?: string
-    tags?: string
-    list_id?: string
-  }): Promise<GetContactsResponse> {
-    const cleanParams: Record<string, string | number | undefined> = {}
+  getContacts(params?: GetContactsParams): Promise<GetContactsResponse> {
+    const cleanParams: Record<string, string | number | boolean | undefined> = {}
     if (params?.page) cleanParams.page = params.page
     if (params?.page_size) cleanParams.page_size = params.page_size
-    if (params?.search) cleanParams.search = params.search
-    if (params?.status && params.status !== 'all') cleanParams.status = params.status
-    if (params?.tags) cleanParams.tags = params.tags
-    else if (params?.list_id && params.list_id !== 'all') cleanParams.tags = params.list_id
+    if (params?.search && params.search.trim()) cleanParams.search = params.search.trim()
+    if (params?.status && params.status !== 'all' && params.status !== 'All statuses') {
+      cleanParams.status = params.status
+    }
+    if (params?.tags && params.tags.trim() && params.tags !== 'all') {
+      cleanParams.tags = params.tags.trim()
+    }
 
     return apiClient<GetContactsResponse>('/contacts/list-contacts', {
       method: 'GET',
-      params: cleanParams as Record<string, string | number | boolean | undefined>,
+      params: cleanParams,
     })
   },
 
@@ -255,7 +136,7 @@ export const contactsApi = {
   },
 
   /**
-   * Create a new contact
+   * Add a new contact
    * POST /api/contacts/add-contact
    */
   createContact(payload: CreateContactPayload): Promise<CreateContactResponse> {
@@ -287,22 +168,31 @@ export const contactsApi = {
   },
 
   /**
-   * Import contacts via CSV / file
+   * Bulk import contacts from a UTF-8 CSV file with optional tags
    * POST /api/contacts/import-contacts
    */
-  importContacts(formData: FormData): Promise<any> {
-    return apiClient('/contacts/import-contacts', {
+  importContacts(file: File, tags?: string[]): Promise<ImportContactsResponse> {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (Array.isArray(tags)) {
+      tags.forEach((tag) => {
+        const cleaned = tag.trim()
+        if (cleaned) formData.append('tags', cleaned)
+      })
+    }
+
+    return apiClient<ImportContactsResponse>('/contacts/import-contacts', {
       method: 'POST',
       body: formData,
     })
   },
 
   /**
-   * List all contact tags
+   * List all unique contact tags
    * GET /api/contacts/list-tags
    */
-  listTags(): Promise<{ data: string[]; success: boolean; message?: string }> {
-    return apiClient('/contacts/list-tags', {
+  listTags(): Promise<ListTagsResponse> {
+    return apiClient<ListTagsResponse>('/contacts/list-tags', {
       method: 'GET',
     })
   },

@@ -40,7 +40,11 @@ import {
   ChevronDown,
   Layers,
   Search,
+  Image as ImageIcon,
+  Upload,
+  Loader2,
 } from 'lucide-react'
+import { uploadMediaImage } from '@/lib/api/media'
 import { EMAIL_TEMPLATES, type EmailTemplate } from '@/lib/email-templates'
 
 type EmailEditorProps = {
@@ -50,6 +54,7 @@ type EmailEditorProps = {
   subject?: string
   startEmpty?: boolean
   onChange?: (content: { html: string; text: string }) => void
+  onSelectTemplate?: (template: EmailTemplate) => void
 }
 
 const COLOR_SWATCHES = [
@@ -82,6 +87,7 @@ export function EmailEditor({
   subject = 'A few things we’ve been working on',
   startEmpty = false,
   onChange,
+  onSelectTemplate,
 }: EmailEditorProps) {
   // Current active template
   const defaultTemplate = EMAIL_TEMPLATES[0]
@@ -117,6 +123,37 @@ export function EmailEditor({
       onChangeRef.current?.({ html: htmlContent, text: plainTextContent })
     }
   }, [htmlContent, plainTextContent])
+
+  // Synchronize when initialHtml or initialPlainText changes externally (e.g. from preset selection)
+  const prevInitialHtmlRef = useRef(initialHtml)
+  useEffect(() => {
+    if (initialHtml !== undefined && initialHtml !== prevInitialHtmlRef.current) {
+      prevInitialHtmlRef.current = initialHtml
+      setHtmlContent(initialHtml)
+      const match = EMAIL_TEMPLATES.find(
+        (t) =>
+          t.html.trim() === initialHtml.trim() ||
+          (t.id && initialHtml.includes(t.id)) ||
+          (t.name && initialHtml.includes(t.name))
+      )
+      if (match) {
+        setCurrentTemplateId(match.id)
+      }
+      lastEmittedRef.current = { html: initialHtml, text: plainTextContent }
+      if (visualEditorRef.current) {
+        visualEditorRef.current.innerHTML = initialHtml
+      }
+    }
+  }, [initialHtml, plainTextContent])
+
+  const prevInitialTextRef = useRef(initialPlainText)
+  useEffect(() => {
+    if (initialPlainText !== undefined && initialPlainText !== prevInitialTextRef.current) {
+      prevInitialTextRef.current = initialPlainText
+      setPlainTextContent(initialPlainText)
+      lastEmittedRef.current = { html: htmlContent, text: initialPlainText }
+    }
+  }, [initialPlainText, htmlContent])
   
   // Editor view modes: 'visual' | 'html' | 'plaintext'
   const [editorMode, setEditorMode] = useState<'visual' | 'html' | 'plaintext'>('visual')
@@ -140,6 +177,20 @@ export function EmailEditor({
   const [linkUrl, setLinkUrl] = useState('https://')
   const [linkText, setLinkText] = useState('')
 
+  // Image Upload & Insertion Modal
+  const [imageModalOpen, setImageModalOpen] = useState(false)
+  const [imageUrl, setImageUrl] = useState('')
+  const [imageAlt, setImageAlt] = useState('')
+  const [imageLink, setImageLink] = useState('')
+  const [imageWidth, setImageWidth] = useState('100%')
+  const [imageAlign, setImageAlign] = useState<'center' | 'left' | 'right'>('center')
+  const [imageBorderRadius, setImageBorderRadius] = useState(8)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [imageUploadDragOver, setImageUploadDragOver] = useState(false)
+  const [imageErrorMsg, setImageErrorMsg] = useState<string | null>(null)
+  const [canvasDragOver, setCanvasDragOver] = useState(false)
+  const editorImageFileInputRef = useRef<HTMLInputElement>(null)
+
   const [textColorOpen, setTextColorOpen] = useState(false)
   const [bgColorOpen, setBgColorOpen] = useState(false)
   const [customTextColor, setCustomTextColor] = useState('#1374f8')
@@ -162,8 +213,9 @@ export function EmailEditor({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isFullScreen, onAction])
 
-  // Visual contentEditable ref
+  // Visual contentEditable ref & HTML textarea ref
   const visualEditorRef = useRef<HTMLDivElement>(null)
+  const htmlTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Keep visual editor in sync when switching back to visual mode or when html changes externally
   useEffect(() => {
@@ -189,16 +241,137 @@ export function EmailEditor({
     handleVisualInput()
   }
 
-  // Insert HTML into contentEditable
+  // Insert HTML into contentEditable or HTML textarea
   const insertHtmlAtCursor = (htmlSnippet: string) => {
     if (editorMode !== 'visual') {
-      // In HTML mode, insert snippet at cursor or append
-      setHtmlContent((prev) => prev + '\n' + htmlSnippet)
+      // In HTML mode, insert snippet at cursor if textarea is focused, otherwise append
+      if (htmlTextareaRef.current) {
+        const textarea = htmlTextareaRef.current
+        const startPos = textarea.selectionStart ?? textarea.value.length
+        const endPos = textarea.selectionEnd ?? textarea.value.length
+        const val = textarea.value
+        const newHtml = val.substring(0, startPos) + htmlSnippet + val.substring(endPos)
+        setHtmlContent(newHtml)
+        setTimeout(() => {
+          textarea.focus()
+          textarea.selectionStart = textarea.selectionEnd = startPos + htmlSnippet.length
+        }, 10)
+      } else {
+        setHtmlContent((prev) => prev + '\n' + htmlSnippet)
+      }
       return
     }
     visualEditorRef.current?.focus()
     document.execCommand('insertHTML', false, htmlSnippet)
     handleVisualInput()
+  }
+
+  // Upload image file from computer
+  const handleUploadImageFile = async (file: File) => {
+    if (!file) return ''
+    setImageErrorMsg(null)
+    setIsUploadingImage(true)
+    try {
+      const url = await uploadMediaImage(file)
+      setImageUrl(url)
+      onAction('Image uploaded successfully.')
+      return url
+    } catch (err: any) {
+      setImageErrorMsg(err?.message || 'Failed to upload image.')
+      return ''
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleUploadImageFile(file)
+    }
+    e.target.value = ''
+  }
+
+  const handleImageFileDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setImageUploadDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      handleUploadImageFile(file)
+    }
+  }
+
+  // Insert customized image element into visual editor or HTML editor
+  const handleInsertImage = () => {
+    if (!imageUrl.trim()) {
+      setImageErrorMsg('Please upload an image or provide an Image URL.')
+      return
+    }
+
+    const alt = imageAlt.trim() || 'Email Graphic'
+    const link = imageLink.trim()
+    const widthStyle = imageWidth.trim() || '100%'
+    const radius = Number(imageBorderRadius) || 0
+
+    if (editorMode === 'visual') {
+      const imageSnippet = `
+        <table role="presentation" border="0" cellspacing="0" cellpadding="0" width="100%" style="margin:16px 0;text-align:${imageAlign};">
+          <tr>
+            <td align="${imageAlign}">
+              ${link ? `<a href="${link}" target="_blank" style="text-decoration:none;display:inline-block;">` : ''}
+              <img src="${imageUrl}" alt="${alt}" style="max-width:100%;width:${widthStyle};height:auto;border-radius:${radius}px;display:inline-block;border:0;outline:none;" />
+              ${link ? `</a>` : ''}
+            </td>
+          </tr>
+        </table>
+      `
+      insertHtmlAtCursor(imageSnippet)
+      onAction('Image inserted into visual editor.')
+    } else {
+      // In HTML mode, insert standard responsive email markup
+      const htmlSnippet = `
+<!-- Embedded Email Image -->
+<div style="text-align: ${imageAlign}; margin: 16px 0;">
+  ${link ? `<a href="${link}" target="_blank">` : ''}
+  <img src="${imageUrl}" alt="${alt}" style="max-width: 100%; width: ${widthStyle}; height: auto; border-radius: ${radius}px; display: inline-block; border: 0;" />
+  ${link ? `</a>` : ''}
+</div>`
+      insertHtmlAtCursor(htmlSnippet)
+      onAction('Image HTML markup inserted.')
+    }
+
+    // Reset and close modal
+    setImageModalOpen(false)
+    setImageUrl('')
+    setImageAlt('')
+    setImageLink('')
+    setImageWidth('100%')
+    setImageAlign('center')
+    setImageBorderRadius(8)
+    setImageErrorMsg(null)
+  }
+
+  // Handle direct file drop on visual canvas
+  const handleCanvasDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setCanvasDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      handleUploadImageFile(file).then((url) => {
+        if (url) {
+          const imgSnippet = `
+            <table role="presentation" border="0" cellspacing="0" cellpadding="0" width="100%" style="margin:16px 0;text-align:center;">
+              <tr>
+                <td align="center">
+                  <img src="${url}" alt="Dropped Image" style="max-width:100%;height:auto;border-radius:8px;display:inline-block;border:0;" />
+                </td>
+              </tr>
+            </table>
+          `
+          insertHtmlAtCursor(imgSnippet)
+        }
+      })
+    }
   }
 
   // Insert Custom CTA Button
@@ -282,6 +455,7 @@ export function EmailEditor({
     }
     setTemplateModalOpen(false)
     setPreviewModalTemplate(null)
+    onSelectTemplate?.(template)
     onAction(`Loaded “${template.name}” template.`)
   }
 
@@ -732,6 +906,16 @@ export function EmailEditor({
 
             <button
               type="button"
+              className="toolbar-btn-text"
+              onClick={() => setImageModalOpen(true)}
+              title="Upload or Insert Image"
+            >
+              <ImageIcon size={14} className="text-sky-600" />
+              <span>Insert Image</span>
+            </button>
+
+            <button
+              type="button"
               className="toolbar-btn"
               onClick={() => setLinkModalOpen(true)}
               title="Insert Link"
@@ -828,6 +1012,15 @@ export function EmailEditor({
           <div className="html-tag-chips">
             <button
               type="button"
+              className="highlight-tag-btn"
+              onClick={() => setImageModalOpen(true)}
+              title="Upload an image from computer or enter URL to insert <img> HTML"
+            >
+              <ImageIcon size={13} className="inline mr-1 text-sky-600" />
+              + &lt;img&gt; Image Upload
+            </button>
+            <button
+              type="button"
               onClick={() => insertHtmlAtCursor('<h2>Subheading Title</h2>')}
             >
               + &lt;h2&gt; Title
@@ -890,10 +1083,16 @@ export function EmailEditor({
             <div className="visual-editor-container">
               <div
                 ref={visualEditorRef}
-                className="visual-editable-canvas"
+                className={`visual-editable-canvas ${canvasDragOver ? 'canvas-drag-active' : ''}`}
                 contentEditable
                 suppressContentEditableWarning
                 onInput={handleVisualInput}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setCanvasDragOver(true)
+                }}
+                onDragLeave={() => setCanvasDragOver(false)}
+                onDrop={handleCanvasDrop}
                 data-placeholder="Click here and start typing your email content, or pick a template above..."
                 aria-label="Email Template Visual Editor"
               />
@@ -904,6 +1103,7 @@ export function EmailEditor({
           {editorMode === 'html' && (
             <div className="html-editor-container">
               <textarea
+                ref={htmlTextareaRef}
                 className="html-code-textarea"
                 value={htmlContent}
                 onChange={(e) => setHtmlContent(e.target.value)}
@@ -1395,6 +1595,242 @@ export function EmailEditor({
                 </button>
                 <button type="submit" className="button button-primary">
                   <Send size={14} /> Send Test Now
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Insert Image Dialog (Upload from Computer + URL + Customization) */}
+      {imageModalOpen && (
+        <div className="dialog-backdrop" onClick={() => setImageModalOpen(false)}>
+          <div
+            className="action-dialog action-dialog-lg"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '540px' }}
+          >
+            <button
+              type="button"
+              className="dialog-close"
+              onClick={() => setImageModalOpen(false)}
+            >
+              <X size={17} />
+            </button>
+            <div className="eyebrow">IMAGE MEDIA ELEMENT</div>
+            <h2>Insert Image</h2>
+            <p>Upload an image from your computer or paste an online URL to embed into your email.</p>
+
+            <form
+              className="dialog-form"
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleInsertImage()
+              }}
+            >
+              {/* Image Source Selection */}
+              <div className="dialog-image-upload-section">
+                <label className="font-semibold text-xs text-slate-700 mb-1.5 block">
+                  Image Source
+                </label>
+
+                {imageUrl ? (
+                  <div className="dialog-image-preview-box">
+                    <div className="dialog-preview-thumb">
+                      <img src={imageUrl} alt="Uploaded preview" />
+                    </div>
+                    <div className="dialog-preview-info">
+                      <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                        <Check size={13} /> Image Ready
+                      </span>
+                      <small className="text-slate-500 block truncate max-w-xs">{imageUrl}</small>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          className="button button-secondary text-xs py-1 px-2.5"
+                          onClick={() => editorImageFileInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                        >
+                          <Upload size={12} /> Change Image
+                        </button>
+                        <button
+                          type="button"
+                          className="text-red-600 hover:text-red-700 text-xs font-medium px-2 py-1"
+                          onClick={() => {
+                            setImageUrl('')
+                            setImageErrorMsg(null)
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={`dialog-dropzone-uploader ${imageUploadDragOver ? 'drag-over' : ''} ${
+                      isUploadingImage ? 'is-uploading' : ''
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      setImageUploadDragOver(true)
+                    }}
+                    onDragLeave={() => setImageUploadDragOver(false)}
+                    onDrop={handleImageFileDrop}
+                    onClick={() => !isUploadingImage && editorImageFileInputRef.current?.click()}
+                  >
+                    {isUploadingImage ? (
+                      <div className="uploader-status py-4">
+                        <Loader2 size={24} className="animate-spin text-sky-600 mb-1" />
+                        <span className="text-xs font-medium text-slate-700">Uploading image to server...</span>
+                      </div>
+                    ) : (
+                      <div className="uploader-status py-3">
+                        <Upload size={22} className="text-sky-600 mb-1" />
+                        <span className="text-xs font-semibold text-slate-800">
+                          Click to upload from computer
+                        </span>
+                        <small className="text-slate-500 text-[11px]">or drag & drop file here (PNG, JPG, WebP, GIF up to 5MB)</small>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={editorImageFileInputRef}
+                  onChange={handleImageFileChange}
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  style={{ display: 'none' }}
+                />
+
+                {/* Direct Image URL fallback */}
+                <div className="mt-3">
+                  <label className="text-[11.5px] text-slate-600 block mb-1">
+                    Or paste Image URL directly:
+                  </label>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => {
+                      setImageUrl(e.target.value)
+                      setImageErrorMsg(null)
+                    }}
+                    placeholder="https://images.unsplash.com/... or hosted CDN link"
+                    className="w-full text-xs"
+                  />
+                </div>
+
+                {imageErrorMsg && (
+                  <p className="text-xs text-red-600 mt-1">{imageErrorMsg}</p>
+                )}
+              </div>
+
+              {/* Image Properties */}
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <label>
+                  Alt Text
+                  <input
+                    type="text"
+                    value={imageAlt}
+                    onChange={(e) => setImageAlt(e.target.value)}
+                    placeholder="e.g. Product overview banner"
+                  />
+                </label>
+
+                <label>
+                  Image Link (Optional)
+                  <input
+                    type="url"
+                    value={imageLink}
+                    onChange={(e) => setImageLink(e.target.value)}
+                    placeholder="https://metrovps.art/store"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mt-2">
+                <label>
+                  Width
+                  <select
+                    value={imageWidth}
+                    onChange={(e) => setImageWidth(e.target.value)}
+                    className="w-full mt-1 text-xs"
+                  >
+                    <option value="100%">100% (Full Width)</option>
+                    <option value="560px">560px (Standard)</option>
+                    <option value="420px">420px (Medium)</option>
+                    <option value="300px">300px (Compact)</option>
+                    <option value="180px">180px (Logo/Small)</option>
+                  </select>
+                </label>
+
+                <label>
+                  Alignment
+                  <select
+                    value={imageAlign}
+                    onChange={(e) => setImageAlign(e.target.value as any)}
+                    className="w-full mt-1 text-xs"
+                  >
+                    <option value="center">Center</option>
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                  </select>
+                </label>
+
+                <label>
+                  Corner Radius
+                  <select
+                    value={imageBorderRadius}
+                    onChange={(e) => setImageBorderRadius(Number(e.target.value))}
+                    className="w-full mt-1 text-xs"
+                  >
+                    <option value={0}>0px (Square)</option>
+                    <option value={6}>6px (Subtle)</option>
+                    <option value={8}>8px (Medium)</option>
+                    <option value={12}>12px (Smooth)</option>
+                    <option value={20}>20px (Pill)</option>
+                  </select>
+                </label>
+              </div>
+
+              {/* Live Preview Box */}
+              {imageUrl && (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-center mt-3">
+                  <span className="text-[11px] text-slate-500 block mb-1.5 font-medium">Layout Preview</span>
+                  <div style={{ textAlign: imageAlign }}>
+                    <img
+                      src={imageUrl}
+                      alt="Preview"
+                      style={{
+                        maxWidth: '100%',
+                        width: imageWidth === '100%' ? '100%' : imageWidth,
+                        maxHeight: '130px',
+                        objectFit: 'cover',
+                        borderRadius: `${imageBorderRadius}px`,
+                        display: 'inline-block',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setImageModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="button button-primary"
+                  disabled={!imageUrl || isUploadingImage}
+                >
+                  <ImageIcon size={14} />
+                  <span>Insert into {editorMode === 'visual' ? 'Visual Editor' : 'HTML Code'}</span>
                 </button>
               </div>
             </form>

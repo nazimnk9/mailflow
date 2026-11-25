@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Activity, Bell, Blocks, Braces, ChartNoAxesCombined, CheckCheck, ChevronDown, CircleHelp, ContactRound, CreditCard, Globe2, Inbox, Kanban, LayoutDashboard, LifeBuoy, ListFilter, LogOut, MailCheck, Menu, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Route, Search, Send, Settings2, ShieldBan, Sliders, Smartphone, Sparkles, UserCircle2, Users, Webhook, Workflow, X } from 'lucide-react'
+import { Activity, Bell, Blocks, Braces, ChartNoAxesCombined, CheckCheck, ChevronDown, CircleHelp, ContactRound, CreditCard, Globe2, Inbox, Kanban, LayoutDashboard, LayoutTemplate, LifeBuoy, ListFilter, LogOut, MailCheck, Menu, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Route, Search, Send, Settings2, ShieldBan, Sliders, Smartphone, Sparkles, UserCircle2, Users, Webhook, Workflow, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BrandMark } from '@/components/brand-mark'
 import { dashboardNav, type MockRow } from '@/lib/mock-data'
@@ -38,6 +38,7 @@ const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?:
   Sparkles,
   Users,
   Webhook,
+  LayoutTemplate,
 }
 const actionSchema = z.object({ name: z.string().optional(), email: z.string().optional(), domain: z.string().optional(), message: z.string().optional() })
 type ActionValues = z.infer<typeof actionSchema>

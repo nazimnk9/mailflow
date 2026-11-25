@@ -36,6 +36,7 @@ export const dashboardNav: NavGroup[] = [
   ] },
    { label: 'Marketing', icon: 'Sparkles', items: [
     { label: 'Campaigns', href: '/app/campaigns', icon: 'Send' },
+    { label: 'Templates', href: '/app/templates', icon: 'LayoutTemplate' },
     // { label: 'SMS & WhatsApp', href: '/app/campaigns/sms', icon: 'Smartphone' },
     { label: 'Contacts', href: '/app/contacts', icon: 'ContactRound' },
     // { label: 'Sales Deals', href: '/app/deals', icon: 'Kanban' },

@@ -27,7 +27,7 @@ export interface TemplateVersionItem {
 export interface CreateTemplatePayload {
   name: string
   kind?: TemplateKind
-  subject: string
+  subject?: string
   html: string
   design?: unknown
 }
