@@ -2236,7 +2236,7 @@ function CampaignReportView({
   return (
     <>
       <div className="page-heading-row">
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div className="page-eyebrow">
             <Link href="/app/campaigns">CAMPAIGNS</Link> <span>/</span> REPORT
           </div>
@@ -2245,7 +2245,10 @@ function CampaignReportView({
             Subject: <b>{campaign.subject || '—'}</b> · Sent {formatDate(campaign.sent_at || campaign.created_at)}
           </p>
         </div>
-        <div className="page-heading-actions">
+        <div
+          className="page-heading-actions"
+          style={{ flexShrink: 0, flexWrap: 'nowrap', whiteSpace: 'nowrap', alignItems: 'center' }}
+        >
           <Link href="/app/campaigns" className="button button-secondary">
             <ArrowLeft size={14} /> All campaigns
           </Link>
