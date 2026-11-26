@@ -712,7 +712,7 @@ export function TransactionalPage({ onAction }: { onAction: (message: string) =>
             </div>
 
             {/* Row 2: To Address & Node Selector */}
-            <div className="form-grid-2col">
+            <div className="form-grid-1col">
               <label className="field-group">
                 <span className="field-label">
                   To address(es) <span className="required-star">*</span>
@@ -734,7 +734,7 @@ export function TransactionalPage({ onAction }: { onAction: (message: string) =>
               </label>
 
               {/* Node Selector - ONLY 2 options: node-158 and node-253 */}
-              <label className="field-group">
+              {/* <label className="field-group">
                 <span className="field-label">
                   Sending Node <span className="required-star">*</span>
                 </span>
@@ -754,7 +754,7 @@ export function TransactionalPage({ onAction }: { onAction: (message: string) =>
                 <span className="field-helper">
                   Select the high-speed MTA node cluster for message routing.
                 </span>
-              </label>
+              </label> */}
             </div>
 
             {/* Row 3: Subject line */}

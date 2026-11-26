@@ -4,20 +4,21 @@ import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight,
-  ArrowUpRight,
   CheckCircle2,
   Clock,
-  Filter,
+  Copy,
+  Eye,
   Mail,
+  MoreHorizontal,
   RefreshCw,
   Search,
   Send,
-  Server,
   XCircle,
   AlertCircle,
   Loader2,
   Paperclip,
 } from 'lucide-react'
+import { FloatingRowActionMenu, RowActionMenuItem, RowActionDivider } from '@/components/floating-row-action-menu'
 import { StatusBadge } from '@/components/status-badge'
 import { TablePagination } from '@/components/table-pagination'
 import {
@@ -54,6 +55,33 @@ export function EmailLogsPage({
   const [previewAttachments, setPreviewAttachments] = useState<PreviewableAttachment[]>([])
   const [previewInitialIndex, setPreviewInitialIndex] = useState(0)
   const [previewTitle, setPreviewTitle] = useState('')
+
+  // Floating 3-dots row action menu state
+  const [expandedMailId, setExpandedMailId] = useState<string | null>(null)
+  const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null)
+
+  useEffect(() => {
+    if (!expandedMailId) return
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (target.closest('.row-action-menu') || target.closest('.row-action-trigger')) return
+      setExpandedMailId(null)
+      setMenuAnchorRect(null)
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpandedMailId(null)
+        setMenuAnchorRect(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [expandedMailId])
 
   const openPreview = (attachments: PreviewableAttachment[], title: string, index = 0) => {
     if (!attachments || attachments.length === 0) return
@@ -416,13 +444,13 @@ export function EmailLogsPage({
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th>Message &amp; Recipient</th>
                     <th>Status</th>
-                    <th>Recipient &amp; Subject</th>
                     <th>From Address</th>
                     <th>Node</th>
                     <th>Events</th>
                     <th>Created At</th>
-                    <th style={{ textAlign: 'right' }}>Action</th>
+                    <th style={{ textAlign: 'right', width: '60px' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -439,11 +467,19 @@ export function EmailLogsPage({
                       : '—'
                     const eventsCount = mail.events?.length ?? 0
                     const mailAttachments = parseAttachments(mail.attachments)
+                    const isExpanded = expandedMailId === mail.id
+                    const avatarInitial = (toDisplay?.[0] || mail.subject?.[0] || 'M').toUpperCase()
 
                     return (
                       <tr
                         key={mail.id}
-                        style={{ cursor: 'pointer' }}
+                        className={isExpanded ? 'row-action-active' : ''}
+                        style={{
+                          cursor: 'pointer',
+                          position: 'relative',
+                          zIndex: isExpanded ? 100 : 1,
+                          backgroundColor: isExpanded ? '#f8fafc' : undefined,
+                        }}
                         onClick={(e) => {
                           const target = e.target as HTMLElement
                           if (target.closest('a') || target.closest('button')) return
@@ -451,31 +487,32 @@ export function EmailLogsPage({
                         }}
                       >
                         <td>
-                          <StatusBadge status={mail.status || 'pending'} />
+                          <div className="table-name-cell">
+                            <span className="table-row-avatar">{avatarInitial}</span>
+                            <span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <b>{mail.subject || '(No subject)'}</b>
+                                {mailAttachments.length > 0 && (
+                                  <button
+                                    type="button"
+                                    className="log-attachments-pill"
+                                    title={`Preview ${mailAttachments.length} attachment${mailAttachments.length > 1 ? 's' : ''}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openPreview(mailAttachments, mail.subject || 'Email Attachments')
+                                    }}
+                                  >
+                                    <Paperclip size={11} />
+                                    <span>{mailAttachments.length}</span>
+                                  </button>
+                                )}
+                              </span>
+                              <small>{toDisplay}</small>
+                            </span>
+                          </div>
                         </td>
                         <td>
-                          <div className="log-subject-cell">
-                            <span className="log-to-addr">
-                              <Mail size={13} /> {toDisplay}
-                            </span>
-                            <div className="log-subject-row">
-                              <b className="log-subject-title">{mail.subject || '(No subject)'}</b>
-                              {mailAttachments.length > 0 && (
-                                <button
-                                  type="button"
-                                  className="log-attachments-pill"
-                                  title={`Preview ${mailAttachments.length} attachment${mailAttachments.length > 1 ? 's' : ''}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openPreview(mailAttachments, mail.subject || 'Email Attachments')
-                                  }}
-                                >
-                                  <Paperclip size={12} />
-                                  <span>{mailAttachments.length}</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
+                          <StatusBadge status={mail.status || 'pending'} />
                         </td>
                         <td>
                           <span className="log-from-email">{mail.from_email}</span>
@@ -490,17 +527,74 @@ export function EmailLogsPage({
                             {eventsCount} {eventsCount === 1 ? 'event' : 'events'}
                           </span>
                         </td>
-                        <td>
-                          <span className="event-date-text">{dateDisplay}</span>
+                        <td style={{ color: '#64748b', fontSize: '13px' }}>
+                          {dateDisplay}
                         </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <Link
-                            href={`/app/logs/${mail.id}`}
-                            className="button button-secondary button-sm"
-                            aria-label={`View details for ${mail.id}`}
+                        <td
+                          className="row-action-cell"
+                          style={{ textAlign: 'right', position: 'relative' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            className={`row-action-trigger ${isExpanded ? 'active' : ''}`}
+                            aria-label={`Open actions for ${mail.subject || mail.id}`}
+                            aria-expanded={isExpanded}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              if (isExpanded) {
+                                setExpandedMailId(null)
+                                setMenuAnchorRect(null)
+                              } else {
+                                setExpandedMailId(mail.id)
+                                setMenuAnchorRect(rect)
+                              }
+                            }}
                           >
-                            Details <ArrowRight size={13} />
-                          </Link>
+                            <MoreHorizontal size={16} />
+                          </button>
+
+                          <FloatingRowActionMenu
+                            isOpen={isExpanded}
+                            anchorRect={menuAnchorRect}
+                            onClose={() => {
+                              setExpandedMailId(null)
+                              setMenuAnchorRect(null)
+                            }}
+                          >
+                            <RowActionMenuItem
+                              icon={Eye}
+                              label="View details"
+                              onClick={() => {
+                                setExpandedMailId(null)
+                                setMenuAnchorRect(null)
+                                window.location.href = `/app/logs/${mail.id}`
+                              }}
+                            />
+                            {mailAttachments.length > 0 && (
+                              <RowActionMenuItem
+                                icon={Paperclip}
+                                label={`Preview attachments (${mailAttachments.length})`}
+                                onClick={() => {
+                                  setExpandedMailId(null)
+                                  setMenuAnchorRect(null)
+                                  openPreview(mailAttachments, mail.subject || 'Email Attachments')
+                                }}
+                              />
+                            )}
+                            <RowActionDivider />
+                            <RowActionMenuItem
+                              icon={Copy}
+                              label="Copy message ID"
+                              onClick={() => {
+                                navigator.clipboard.writeText(mail.id)
+                                onAction(`Message ID ${mail.id} copied to clipboard.`)
+                                setExpandedMailId(null)
+                                setMenuAnchorRect(null)
+                              }}
+                            />
+                          </FloatingRowActionMenu>
                         </td>
                       </tr>
                     )

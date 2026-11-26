@@ -56,6 +56,23 @@ export function MessageDetailPage({
   const [previewModalOpen, setPreviewModalOpen] = useState(false)
   const [previewIndex, setPreviewIndex] = useState(0)
 
+  const attachments: MailAttachment[] = useMemo(() => {
+    if (!mail || !Array.isArray(mail.attachments)) return []
+    return (mail.attachments as Array<MailAttachment | string>).filter(
+      (a: MailAttachment | string): a is MailAttachment => typeof a === 'object' && a !== null
+    )
+  }, [mail])
+
+  const previewableAttachments: PreviewableAttachment[] = useMemo(() => {
+    return attachments.map((att, idx) => ({
+      filename: att.filename || `attachment-${idx + 1}`,
+      content_type: att.content_type || 'application/octet-stream',
+      size: typeof att.size === 'number' ? att.size : 0,
+      content: att.content,
+      url: (att as unknown as { url?: string }).url,
+    }))
+  }, [attachments])
+
   const copyId = () => {
     if (!mailId) return
     navigator.clipboard.writeText(mailId)
@@ -95,21 +112,6 @@ export function MessageDetailPage({
   const bccDisplay = Array.isArray(mail.bcc) ? mail.bcc.join(', ') : mail.bcc
 
   const events: MailEvent[] = mail.events ?? []
-  const attachments: MailAttachment[] = Array.isArray(mail.attachments)
-    ? (mail.attachments as Array<MailAttachment | string>).filter(
-        (a: MailAttachment | string): a is MailAttachment => typeof a === 'object' && a !== null
-      )
-    : []
-
-  const previewableAttachments: PreviewableAttachment[] = useMemo(() => {
-    return attachments.map((att, idx) => ({
-      filename: att.filename || `attachment-${idx + 1}`,
-      content_type: att.content_type || 'application/octet-stream',
-      size: typeof att.size === 'number' ? att.size : 0,
-      content: att.content,
-      url: (att as unknown as { url?: string }).url,
-    }))
-  }, [attachments])
 
   const openPreviewAtIndex = (idx: number) => {
     setPreviewIndex(idx)
@@ -119,23 +121,31 @@ export function MessageDetailPage({
   return (
     <>
       <div className="page-heading-row">
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div className="page-eyebrow">
             <Link href="/app/logs">EMAIL LOGS</Link> <span>/</span> MESSAGE DETAIL
           </div>
-          <h1>{mail.subject || '(No subject)'}</h1>
+          <h1 style={{ wordBreak: 'break-word' }}>{mail.subject || '(No subject)'}</h1>
           <p>Delivery events, remote MTA response, and message metadata.</p>
         </div>
-        <div className="page-heading-actions">
+        <div
+          className="page-heading-actions"
+          style={{ flexShrink: 0, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}
+        >
           <button
             type="button"
             className="button button-secondary"
+            style={{ whiteSpace: 'nowrap' }}
             onClick={copyId}
           >
             {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
             <span>{copied ? 'Copied ID' : 'Copy Message ID'}</span>
           </button>
-          <Link className="button button-secondary" href="/app/logs">
+          <Link
+            className="button button-secondary"
+            href="/app/logs"
+            style={{ whiteSpace: 'nowrap' }}
+          >
             <ArrowLeft size={14} /> Back to logs
           </Link>
         </div>

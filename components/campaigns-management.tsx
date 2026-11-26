@@ -11,12 +11,15 @@ import {
   Check,
   ChevronDown,
   Clock3,
+  Code2,
   Copy,
   ExternalLink,
   Eye,
+  FileText,
   Filter,
   Globe2,
   Inbox,
+  LayoutTemplate,
   Loader2,
   Mail,
   MoreHorizontal,
@@ -43,8 +46,10 @@ import {
   useReRunCampaignMutation,
 } from '@/lib/hooks/use-campaigns-query'
 import { useDomainsQuery } from '@/lib/hooks/use-domains-query'
+import { useTemplatesQuery } from '@/lib/hooks/use-templates-query'
 import { contactsApi } from '@/lib/api/contacts'
 import type { CampaignItem, CampaignRequestPayload, CampaignStats } from '@/lib/api/campaigns'
+import type { TemplateItem } from '@/lib/api/templates'
 import { TablePagination } from '@/components/table-pagination'
 import { StatusBadge } from '@/components/status-badge'
 import {
@@ -53,6 +58,14 @@ import {
   RowActionDivider,
 } from '@/components/floating-row-action-menu'
 import { EmailEditor } from '@/components/email-editor'
+import {
+  VisualEmailBuilder,
+  compileBlocksToHtml,
+  convertHtmlToEmailBlocks,
+  getBlocksForPreset,
+  type EmailBlock,
+} from '@/components/visual-email-builder'
+import { EMAIL_TEMPLATES } from '@/lib/email-templates'
 
 // Safe text extractor
 function safeText(val: any): string {
@@ -1277,12 +1290,109 @@ function CampaignBuilderView({ onAction }: { onAction: (msg: string) => void }) 
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [htmlContent, setHtmlContent] = useState('')
   const [textContent, setTextContent] = useState('')
+  const [designState, setDesignState] = useState<EmailBlock[] | null>(null)
+  const [editorType, setEditorType] = useState<'visual_builder' | 'rich_code'>('visual_builder')
+  const [templateKey, setTemplateKey] = useState(0)
+  const [selectedSavedTemplateId, setSelectedSavedTemplateId] = useState<string | null>(null)
+  const [showSavedTemplates, setShowSavedTemplates] = useState(true)
+  const [savedTemplateSearch, setSavedTemplateSearch] = useState('')
+  const [savedTemplateKindFilter, setSavedTemplateKindFilter] = useState<'all' | 'marketing' | 'transactional'>('all')
   const [validationError, setValidationError] = useState<string | null>(null)
 
   // Fetch verified domains for sender dropdown
   const { data: domainsRes } = useDomainsQuery()
   const domains = useMemo(() => domainsRes?.data || [], [domainsRes])
   const verifiedDomains = useMemo(() => domains.filter((d) => d.is_verified), [domains])
+
+  // Fetch saved templates from Template section
+  const {
+    data: templatesRes,
+    isLoading: templatesLoading,
+    refetch: refetchTemplates,
+  } = useTemplatesQuery({ page_size: 100 })
+
+  const savedTemplates: TemplateItem[] = useMemo(() => {
+    const raw = templatesRes?.data
+    if (Array.isArray(raw)) return raw
+    if (raw && typeof raw === 'object' && Array.isArray((raw as any).items)) {
+      return (raw as any).items
+    }
+    return []
+  }, [templatesRes])
+
+  const filteredSavedTemplates = useMemo(() => {
+    const q = savedTemplateSearch.toLowerCase().trim()
+    return savedTemplates.filter((tpl) => {
+      if (savedTemplateKindFilter !== 'all' && tpl.kind !== savedTemplateKindFilter) return false
+      if (!q) return true
+      return (
+        tpl.name?.toLowerCase().includes(q) ||
+        tpl.subject?.toLowerCase().includes(q) ||
+        tpl.kind?.toLowerCase().includes(q)
+      )
+    })
+  }, [savedTemplates, savedTemplateSearch, savedTemplateKindFilter])
+
+  const handleSelectSavedTemplate = (tpl: TemplateItem) => {
+    let nextBlocks: EmailBlock[] = []
+    if (Array.isArray(tpl.design) && tpl.design.length > 0) {
+      nextBlocks = tpl.design as EmailBlock[]
+    } else if (tpl.html && tpl.html.trim()) {
+      const matched = EMAIL_TEMPLATES.find(
+        (t) =>
+          t.html.trim() === tpl.html.trim() ||
+          (t.id && tpl.html.includes(t.id)) ||
+          (t.name && tpl.html.includes(t.name))
+      )
+      nextBlocks = matched ? getBlocksForPreset(matched) : convertHtmlToEmailBlocks(tpl.html)
+    }
+
+    const nextHtml =
+      tpl.html && tpl.html.trim()
+        ? tpl.html
+        : nextBlocks.length > 0
+        ? compileBlocksToHtml(nextBlocks)
+        : ''
+
+    setSelectedSavedTemplateId(tpl.id)
+    setDesignState(nextBlocks.length > 0 ? nextBlocks : null)
+    setHtmlContent(nextHtml)
+    if (!subject.trim() && tpl.subject) {
+      setSubject(tpl.subject)
+    }
+    setTemplateKey((k) => k + 1)
+    onAction(`Loaded template “${tpl.name}” into editor.`)
+  }
+
+  const handleSwitchDesignMode = (targetMode: 'visual_builder' | 'rich_code') => {
+    if (targetMode === editorType) return
+
+    if (targetMode === 'visual_builder' && editorType === 'rich_code') {
+      let targetBlocks: EmailBlock[] = []
+      if (designState && Array.isArray(designState) && designState.length > 0) {
+        targetBlocks = designState
+      } else if (htmlContent && htmlContent.trim()) {
+        const matched = EMAIL_TEMPLATES.find(
+          (t) =>
+            t.html.trim() === htmlContent.trim() ||
+            (t.id && htmlContent.includes(t.id)) ||
+            (t.name && htmlContent.includes(t.name)) ||
+            (t.subject && htmlContent.includes(t.subject))
+        )
+        targetBlocks = matched ? getBlocksForPreset(matched) : convertHtmlToEmailBlocks(htmlContent)
+      }
+      setDesignState(targetBlocks.length > 0 ? targetBlocks : null)
+      setTemplateKey((k) => k + 1)
+    } else if (targetMode === 'rich_code' && editorType === 'visual_builder') {
+      if (designState && Array.isArray(designState) && designState.length > 0) {
+        setHtmlContent(compileBlocksToHtml(designState))
+      } else {
+        setHtmlContent('')
+      }
+    }
+
+    setEditorType(targetMode)
+  }
 
   // Fetch available tags from contacts
   const [availableTags, setAvailableTags] = useState<string[]>([])
@@ -1329,6 +1439,10 @@ function CampaignBuilderView({ onAction }: { onAction: (msg: string) => void }) 
   // Save as Draft
   const handleSaveDraft = async () => {
     setValidationError(null)
+    const finalHtml =
+      editorType === 'visual_builder' && Array.isArray(designState) && designState.length > 0
+        ? compileBlocksToHtml(designState)
+        : htmlContent
     try {
       const payload: CampaignRequestPayload = {
         name: name.trim() || 'Untitled Campaign',
@@ -1337,7 +1451,7 @@ function CampaignBuilderView({ onAction }: { onAction: (msg: string) => void }) 
         from_email: fromEmail.trim() || undefined,
         reply_to: replyTo.trim() || undefined,
         tags: selectedTags.length > 0 ? selectedTags : undefined,
-        html: htmlContent || '<p>Default campaign message content.</p>',
+        html: finalHtml || '<p>Default campaign message content.</p>',
         text: textContent || undefined,
       }
       const res = await createCampaignMutation.mutateAsync(payload)
@@ -1351,6 +1465,10 @@ function CampaignBuilderView({ onAction }: { onAction: (msg: string) => void }) 
   // Send Immediately
   const handleSendNow = async () => {
     setValidationError(null)
+    const finalHtml =
+      editorType === 'visual_builder' && Array.isArray(designState) && designState.length > 0
+        ? compileBlocksToHtml(designState)
+        : htmlContent
     try {
       const payload: CampaignRequestPayload = {
         name: name.trim() || 'Untitled Campaign',
@@ -1359,7 +1477,7 @@ function CampaignBuilderView({ onAction }: { onAction: (msg: string) => void }) 
         from_email: fromEmail.trim() || undefined,
         reply_to: replyTo.trim() || undefined,
         tags: selectedTags.length > 0 ? selectedTags : undefined,
-        html: htmlContent || '<p>Default campaign message content.</p>',
+        html: finalHtml || '<p>Default campaign message content.</p>',
         text: textContent || undefined,
       }
       const created = await createCampaignMutation.mutateAsync(payload)
@@ -1596,18 +1714,319 @@ function CampaignBuilderView({ onAction }: { onAction: (msg: string) => void }) 
 
           {/* STEP 2: EMAIL DESIGN */}
           {step === 2 && (
-            <div style={{ marginTop: '16px' }}>
-              <EmailEditor
-                onAction={onAction}
-                subject={subject || name}
-                startEmpty={!htmlContent}
-                initialHtml={htmlContent || undefined}
-                initialPlainText={textContent || undefined}
-                onChange={({ html, text }) => {
-                  setHtmlContent(html)
-                  setTextContent(text)
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Design Toolbar: Mode Switcher + Saved Templates Toggle */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
                 }}
-              />
+              >
+                <div className="builder-mode-switcher-tabs">
+                  <button
+                    type="button"
+                    className={`mode-tab-btn ${editorType === 'visual_builder' ? 'active' : ''}`}
+                    onClick={() => handleSwitchDesignMode('visual_builder')}
+                  >
+                    <LayoutTemplate size={14} /> Visual Drag &amp; Drop Builder
+                  </button>
+                  <button
+                    type="button"
+                    className={`mode-tab-btn ${editorType === 'rich_code' ? 'active' : ''}`}
+                    onClick={() => handleSwitchDesignMode('rich_code')}
+                  >
+                    <Code2 size={14} /> Rich Text &amp; HTML Code
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {selectedSavedTemplateId && (
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: '#1d4ed8',
+                        backgroundColor: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                    >
+                      <Check size={12} />
+                      {savedTemplates.find((t) => t.id === selectedSavedTemplateId)?.name || 'Template Loaded'}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => setShowSavedTemplates((prev) => !prev)}
+                  >
+                    <FileText size={14} />
+                    <span>
+                      {showSavedTemplates
+                        ? `Hide Saved Templates (${savedTemplates.length})`
+                        : `Saved Templates (${savedTemplates.length})`}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Saved Templates Selector List */}
+              {showSavedTemplates && (
+                <div
+                  style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    backgroundColor: '#ffffff',
+                    padding: '16px',
+                    boxShadow: '0 2px 10px rgba(15, 23, 42, 0.03)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '10px',
+                      marginBottom: '12px',
+                    }}
+                  >
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '14.5px', color: '#0f172a' }}>
+                        Saved Templates Library
+                      </strong>
+                      <small style={{ fontSize: '12.5px', color: '#64748b' }}>
+                        Select any saved template from your Templates section to load and customize it in the editor below.
+                      </small>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <div style={{ position: 'relative' }}>
+                        <Search
+                          size={13}
+                          style={{
+                            position: 'absolute',
+                            left: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: '#94a3b8',
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Search saved templates…"
+                          value={savedTemplateSearch}
+                          onChange={(e) => setSavedTemplateSearch(e.target.value)}
+                          style={{
+                            padding: '6px 10px 6px 28px',
+                            fontSize: '12.5px',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '7px',
+                            minWidth: '190px',
+                          }}
+                        />
+                      </div>
+
+                      <select
+                        value={savedTemplateKindFilter}
+                        onChange={(e) =>
+                          setSavedTemplateKindFilter(e.target.value as 'all' | 'marketing' | 'transactional')
+                        }
+                        style={{
+                          padding: '6px 10px',
+                          fontSize: '12.5px',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '7px',
+                          backgroundColor: '#ffffff',
+                        }}
+                      >
+                        <option value="all">All categories</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="transactional">Transactional</option>
+                      </select>
+
+                      <button
+                        type="button"
+                        className="button button-secondary button-sm"
+                        onClick={() => refetchTemplates()}
+                        title="Refresh saved templates"
+                      >
+                        <RefreshCw size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {templatesLoading ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                      <Loader2 size={18} className="animate-spin mx-auto mb-2 text-blue-600" />
+                      Loading saved templates…
+                    </div>
+                  ) : filteredSavedTemplates.length === 0 ? (
+                    <div
+                      style={{
+                        padding: '20px',
+                        textAlign: 'center',
+                        backgroundColor: '#f8fafc',
+                        borderRadius: '8px',
+                        border: '1px dashed #cbd5e1',
+                        color: '#64748b',
+                        fontSize: '13px',
+                      }}
+                    >
+                      {savedTemplates.length === 0
+                        ? 'No saved templates yet. Create templates in the Templates section or design directly below.'
+                        : 'No saved templates match your search filter.'}
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                        gap: '10px',
+                        maxHeight: '240px',
+                        overflowY: 'auto',
+                        paddingRight: '2px',
+                      }}
+                    >
+                      {filteredSavedTemplates.map((tpl) => {
+                        const isSelected = selectedSavedTemplateId === tpl.id
+                        return (
+                          <button
+                            key={tpl.id}
+                            type="button"
+                            onClick={() => handleSelectSavedTemplate(tpl)}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              gap: '8px',
+                              padding: '12px 14px',
+                              borderRadius: '9px',
+                              border: isSelected ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                              backgroundColor: isSelected ? '#eff6ff' : '#ffffff',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              transition: 'border-color 0.15s ease, background-color 0.15s ease',
+                            }}
+                          >
+                            <div style={{ width: '100%' }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '6px',
+                                  marginBottom: '4px',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: '10.5px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    padding: '2px 7px',
+                                    borderRadius: '999px',
+                                    backgroundColor:
+                                      tpl.kind === 'transactional' ? '#f0fdf4' : '#eef2ff',
+                                    color: tpl.kind === 'transactional' ? '#15803d' : '#4338ca',
+                                  }}
+                                >
+                                  {tpl.kind || 'marketing'}
+                                </span>
+                                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                                  v{tpl.version || 1}
+                                </span>
+                              </div>
+                              <strong
+                                style={{
+                                  display: 'block',
+                                  fontSize: '13.5px',
+                                  color: '#0f172a',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {tpl.name}
+                              </strong>
+                              <small
+                                style={{
+                                  display: 'block',
+                                  fontSize: '12px',
+                                  color: '#64748b',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  marginTop: '2px',
+                                }}
+                              >
+                                {tpl.subject || 'No subject line'}
+                              </small>
+                            </div>
+
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                width: '100%',
+                                paddingTop: '6px',
+                                borderTop: '1px solid #f1f5f9',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                color: isSelected ? '#1d4ed8' : '#2563eb',
+                              }}
+                            >
+                              <span>{isSelected ? 'Loaded in Editor' : 'Use & Edit Template'}</span>
+                              {isSelected ? <Check size={13} /> : <ArrowRight size={13} />}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Active Email Designer: Visual Drag & Drop Builder OR Rich Text & HTML Code */}
+              {editorType === 'visual_builder' ? (
+                <VisualEmailBuilder
+                  key={`campaign_visual_${selectedSavedTemplateId || 'custom'}_${templateKey}`}
+                  initialDesign={designState}
+                  initialHtml={htmlContent}
+                  onChange={({ html, design }) => {
+                    setHtmlContent(html)
+                    setDesignState(design)
+                  }}
+                  onAction={onAction}
+                />
+              ) : (
+                <div className="template-editor-frame">
+                  <EmailEditor
+                    key={`campaign_rich_${selectedSavedTemplateId || 'custom'}_${templateKey}`}
+                    onAction={onAction}
+                    subject={subject || name}
+                    startEmpty={!htmlContent}
+                    initialHtml={htmlContent || undefined}
+                    initialPlainText={textContent || undefined}
+                    onChange={({ html, text }) => {
+                      setHtmlContent(html)
+                      setTextContent(text)
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
 
