@@ -112,6 +112,7 @@ export function AuthScreen({ page = 'login' }: { page?: string }) {
       const searchParams = new URLSearchParams(window.location.search)
       const emailParam = searchParams.get('email')
       const verifiedParam = searchParams.get('verified')
+      const sessionExpiredParam = searchParams.get('session_expired')
 
       // Clean URL if accidental password or GET query params were in the URL
       if (searchParams.has('password')) {
@@ -136,6 +137,11 @@ export function AuthScreen({ page = 'login' }: { page?: string }) {
         setBanner({
           type: 'success',
           message: 'Email verified successfully! Please sign in with your credentials.',
+        })
+      } else if (sessionExpiredParam === 'true' && mode === 'login') {
+        setBanner({
+          type: 'error',
+          message: 'Your session has expired. Please sign in again.',
         })
       }
     }

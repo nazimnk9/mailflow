@@ -12,6 +12,7 @@ import { dashboardNav, type MockRow } from '@/lib/mock-data'
 import { createContact, issueApiKey, verifySendingDomain } from '@/lib/services'
 import { DashboardContent } from '@/components/dashboard-content'
 import { authToken } from '@/lib/auth-token'
+import { useLogoutMutation, useProfileQuery } from '@/lib/hooks/use-auth-mutations'
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
   LayoutDashboard,
@@ -254,12 +255,35 @@ export function DashboardApp({ route }: { route: string }) {
     if (action === 'key') { window.location.href = '/app/api-keys'; return }
     openAction(action)
   }
+  const { data: profileRes } = useProfileQuery()
+  const profile = profileRes?.data
+  const displayName = profile?.full_name?.trim() || 'Account'
+  const displayEmail = profile?.email || authToken.getUserEmail() || ''
+  const avatarUrl = profile?.avatar_url || ''
+  const userInitials = useMemo(() => {
+    const clean = (profile?.full_name || '').trim()
+    if (clean) {
+      const parts = clean.split(/\s+/)
+      if (parts.length >= 2) return `${parts[0][0] || ''}${parts[parts.length - 1][0] || ''}`.toUpperCase()
+      return clean.slice(0, 2).toUpperCase()
+    }
+    return displayEmail ? displayEmail.slice(0, 2).toUpperCase() : 'U'
+  }, [profile?.full_name, displayEmail])
+
+  const logoutMutation = useLogoutMutation()
+
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault()
+    if (logoutMutation.isPending) return
     setProfileOpen(false)
     setSidebarProfileOpen(false)
-    await authToken.remove()
-    window.location.href = '/login'
+    try {
+      await logoutMutation.mutateAsync()
+    } catch {
+      authToken.clearClientState()
+      authToken.clearUserEmail()
+    }
+    window.location.replace('/login')
   }
 
   const currentLabel = allItems.find((item) => normalizedPath === item.href || normalizedPath.startsWith(`${item.href}/`))?.label ?? 'Workspace'
@@ -363,14 +387,20 @@ export function DashboardApp({ route }: { route: string }) {
             }}
             aria-expanded={sidebarProfileOpen}
             aria-haspopup="menu"
-            title="Alex Morgan · alex@metrovps.com"
+            title={displayEmail ? `${displayName} · ${displayEmail}` : displayName}
           >
-            <span className="user-avatar">AM</span>
+            <span className="user-avatar" style={{ overflow: 'hidden' }}>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                userInitials
+              )}
+            </span>
             {!collapsed && (
               <>
                 <span className="sidebar-user-name">
-                  <b>Alex Morgan</b>
-                  <small>Owner · alex@metrovps.com</small>
+                  <b>{displayName}</b>
+                  <small>{displayEmail || 'Workspace Member'}</small>
                 </span>
                 <ChevronDown
                   size={14}
@@ -387,13 +417,19 @@ export function DashboardApp({ route }: { route: string }) {
               aria-label="User account menu"
             >
               <div className="profile-popover-header">
-                <span className="user-avatar user-avatar-lg">AM</span>
+                <span className="user-avatar user-avatar-lg" style={{ overflow: 'hidden' }}>
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    userInitials
+                  )}
+                </span>
                 <div className="profile-popover-user-info">
                   <div className="profile-popover-name-row">
-                    <b>Alex Morgan</b>
-                    <span className="profile-role-badge">Owner</span>
+                    <b>{displayName}</b>
+                    {profile?.is_verified && <span className="profile-role-badge">Verified</span>}
                   </div>
-                  <small>alex@metrovps.com</small>
+                  <small>{displayEmail}</small>
                 </div>
               </div>
 
@@ -414,10 +450,11 @@ export function DashboardApp({ route }: { route: string }) {
                 <button
                   type="button"
                   className="profile-popover-item profile-signout-item"
+                  disabled={logoutMutation.isPending}
                   onClick={handleSignOut}
                 >
                   <LogOut size={16} />
-                  <span>Sign out</span>
+                  <span>{logoutMutation.isPending ? 'Signing out…' : 'Sign out'}</span>
                 </button>
               </div>
             </div>
@@ -507,21 +544,33 @@ export function DashboardApp({ route }: { route: string }) {
               }}
               aria-expanded={profileOpen}
               aria-haspopup="menu"
-              title="Alex Morgan (alex@metrovps.com)"
+              title={displayEmail ? `${displayName} (${displayEmail})` : displayName}
             >
-              <span className="user-avatar">AM</span>
+              <span className="user-avatar" style={{ overflow: 'hidden' }}>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  userInitials
+                )}
+              </span>
               <ChevronDown size={13} className={`topbar-profile-chevron ${profileOpen ? 'topbar-profile-chevron-open' : ''}`} />
             </button>
             {profileOpen && (
               <div className="topbar-popover profile-popover" role="menu" aria-label="User account menu">
                 <div className="profile-popover-header">
-                  <span className="user-avatar user-avatar-lg">AM</span>
+                  <span className="user-avatar user-avatar-lg" style={{ overflow: 'hidden' }}>
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      userInitials
+                    )}
+                  </span>
                   <div className="profile-popover-user-info">
                     <div className="profile-popover-name-row">
-                      <b>Alex Morgan</b>
-                      <span className="profile-role-badge">Owner</span>
+                      <b>{displayName}</b>
+                      {profile?.is_verified && <span className="profile-role-badge">Verified</span>}
                     </div>
-                    <small>alex@metrovps.com</small>
+                    <small>{displayEmail}</small>
                   </div>
                 </div>
 
@@ -539,10 +588,11 @@ export function DashboardApp({ route }: { route: string }) {
                   <button
                     type="button"
                     className="profile-popover-item profile-signout-item"
+                    disabled={logoutMutation.isPending}
                     onClick={handleSignOut}
                   >
                     <LogOut size={16} />
-                    <span>Sign out</span>
+                    <span>{logoutMutation.isPending ? 'Signing out…' : 'Sign out'}</span>
                   </button>
                 </div>
               </div>

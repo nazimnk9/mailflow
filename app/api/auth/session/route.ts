@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@/lib/server-auth'
 
 export async function GET() {
   try {
     const cookieStore = await cookies()
-    const token = cookieStore.get('metromail_access_token')
+    const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)
+    const refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)
 
-    if (!token?.value) {
+    if (!accessToken?.value && !refreshToken?.value) {
       return NextResponse.json({
         isAuthenticated: false,
       })
@@ -22,4 +24,3 @@ export async function GET() {
     )
   }
 }
-

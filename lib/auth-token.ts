@@ -26,22 +26,32 @@ export const authToken = {
         localStorage.setItem(TOKEN_KEY, token)
       }
       localStorage.setItem(SESSION_KEY, 'authenticated')
-      document.cookie = `${SESSION_KEY}=authenticated; path=/; max-age=604800; SameSite=Lax`
+      const secureFlag = window.location.protocol === 'https:' ? '; Secure' : ''
+      document.cookie = `${SESSION_KEY}=authenticated; path=/; max-age=2592000; SameSite=Lax${secureFlag}`
     } catch (e) {
       console.error('Failed to set session state:', e)
     }
   },
 
-  async remove(): Promise<void> {
+  clearClientState(): void {
     if (typeof window === 'undefined') return
     try {
       localStorage.removeItem(TOKEN_KEY)
       localStorage.removeItem(SESSION_KEY)
       document.cookie = `${TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
       document.cookie = `${SESSION_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+    } catch (e) {
+      console.error('Failed to clear client auth state:', e)
+    }
+  },
 
-      // Server-side logout to purge HttpOnly cookie
-      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+  async remove(): Promise<void> {
+    if (typeof window === 'undefined') return
+    try {
+      this.clearClientState()
+
+      // Server-side logout to revoke refresh_token & purge HttpOnly cookies
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(() => {})
     } catch (e) {
       console.error('Failed to remove auth token:', e)
     }

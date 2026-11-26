@@ -47,10 +47,28 @@ export interface LoginPayload {
 export interface LoginResponse {
   data: {
     access_token: string
+    refresh_token?: string
   }
   success: boolean
   message: string
   errors?: string
+}
+
+export interface RefreshTokenResponse {
+  data: {
+    access_token: string
+    refresh_token?: string
+  } | null
+  success: boolean
+  message: string
+  errors?: string | null
+}
+
+export interface LogoutResponse {
+  data: null
+  success: boolean
+  message: string
+  errors?: string | null
 }
 
 export interface UserProfile {
@@ -59,6 +77,7 @@ export interface UserProfile {
   full_name: string
   phone_number?: string | null
   is_verified: boolean
+  avatar_url?: string | null
   created_at: string
 }
 
@@ -124,6 +143,28 @@ export const authApi = {
   },
 
   /**
+   * Refresh access token using HttpOnly refresh_token cookie
+   * POST /api/auth/refresh-token
+   */
+  refreshToken(): Promise<RefreshTokenResponse> {
+    return apiClient<RefreshTokenResponse>('/auth/refresh-token', {
+      method: 'POST',
+      skipAuth: true,
+    })
+  },
+
+  /**
+   * Revoke refresh token and log out
+   * POST /api/auth/logout
+   */
+  logout(): Promise<LogoutResponse> {
+    return apiClient<LogoutResponse>('/auth/logout', {
+      method: 'POST',
+      skipAuth: true,
+    })
+  },
+
+  /**
    * Fetch current authenticated user's profile
    * GET /api/auth/get-profile
    */
@@ -141,6 +182,29 @@ export const authApi = {
     return apiClient<UserProfileResponse>('/auth/update-profile', {
       method: 'PATCH',
       body: JSON.stringify(payload),
+    })
+  },
+
+  /**
+   * Upload user profile avatar (PNG, JPG, GIF or WebP, up to 2 MB)
+   * POST /api/auth/upload-avatar
+   */
+  uploadAvatar(file: File): Promise<UserProfileResponse> {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient<UserProfileResponse>('/auth/upload-avatar', {
+      method: 'POST',
+      body: formData,
+    })
+  },
+
+  /**
+   * Delete current user's profile avatar
+   * DELETE /api/auth/delete-avatar
+   */
+  deleteAvatar(): Promise<UserProfileResponse> {
+    return apiClient<UserProfileResponse>('/auth/delete-avatar', {
+      method: 'DELETE',
     })
   },
 }

@@ -32,6 +32,7 @@ export default async function Page({ params }: { params: Promise<{ segments: str
   const cookieStore = await cookies()
   const isAuthenticated =
     cookieStore.has('metromail_access_token') ||
+    cookieStore.has('metromail_refresh_token') ||
     cookieStore.get('metromail_session')?.value === 'authenticated'
 
   // If already logged in, redirect /login and /signup to dashboard

@@ -26,7 +26,7 @@ export const dashboardNav: NavGroup[] = [
     { label: 'Webhooks', href: '/app/webhooks', icon: 'Webhook' },
     // { label: 'Mailing Lists', href: '/app/mailing-lists', icon: 'Users' },
     // { label: 'Domain Settings', href: '/app/domain-settings', icon: 'Settings2' },
-    { label: 'Receiving', href: '/app/receiving', icon: 'Inbox' },
+    // { label: 'Receiving', href: '/app/receiving', icon: 'Inbox' },
     { label: 'Transactional email', href: '/app/transactional', icon: 'MailCheck' },
     // { label: 'Email Validator', href: '/app/verify', icon: 'CheckCheck' },
     // { label: 'Inbox Placement', href: '/app/inbox-placement', icon: 'Inbox' },

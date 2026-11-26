@@ -4,9 +4,10 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Check if session or access token cookie is present
+  // Check if access token, refresh token, or session cookie is present
   const hasAuthToken =
     request.cookies.has('metromail_access_token') ||
+    request.cookies.has('metromail_refresh_token') ||
     request.cookies.get('metromail_session')?.value === 'authenticated'
 
   // 1. Protected routes (Customer Panel: /app/*, /dashboard/*)

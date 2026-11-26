@@ -191,13 +191,40 @@ export class ApiError extends Error {
 type RequestOptions = RequestInit & {
   params?: Record<string, string | number | boolean | undefined>
   skipAuth?: boolean
+  _retriedAfterRefresh?: boolean
+}
+
+let clientRefreshPromise: Promise<boolean> | null = null
+
+async function refreshClientSession(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  if (clientRefreshPromise) return clientRefreshPromise
+
+  clientRefreshPromise = (async () => {
+    try {
+      const res = await fetch('/api/auth/refresh-token', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      })
+      if (!res.ok) return false
+      const json = await res.json().catch(() => null)
+      return Boolean(json?.success)
+    } catch {
+      return false
+    } finally {
+      clientRefreshPromise = null
+    }
+  })()
+
+  return clientRefreshPromise
 }
 
 export async function apiClient<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { params, skipAuth = false, headers, ...customConfig } = options
+  const { params, skipAuth = false, _retriedAfterRefresh = false, headers, ...customConfig } = options
 
   const cleanEndpoint = endpoint.replace(/^\/+/, '')
   let url: string
@@ -210,6 +237,7 @@ export async function apiClient<T>(
       cleanEndpoint === 'auth/register' ||
       cleanEndpoint === 'auth/resend-otp' ||
       cleanEndpoint === 'auth/verify-otp' ||
+      cleanEndpoint === 'auth/refresh-token' ||
       cleanEndpoint === 'auth/logout' ||
       cleanEndpoint === 'auth/session'
 
@@ -323,6 +351,24 @@ export async function apiClient<T>(
         )
       }
       console.groupEnd()
+    }
+
+    if (response.status === 401 && typeof window !== 'undefined' && !skipAuth) {
+      const isAuthEndpoint = cleanEndpoint.startsWith('auth/')
+      if (!isAuthEndpoint && !_retriedAfterRefresh) {
+        const refreshed = await refreshClientSession()
+        if (refreshed) {
+          return apiClient<T>(endpoint, { ...options, _retriedAfterRefresh: true })
+        }
+      }
+
+      if (!isAuthEndpoint || cleanEndpoint === 'auth/get-profile') {
+        authToken.clearClientState()
+        const path = window.location.pathname
+        if (path !== '/login' && path !== '/signup') {
+          window.location.href = '/login?session_expired=true'
+        }
+      }
     }
 
     if (isFailure) {
