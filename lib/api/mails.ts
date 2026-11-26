@@ -76,23 +76,36 @@ export interface GetMailsParams {
   node?: string
 }
 
-export interface MailStatsData {
-  total: number
+export type MailStatsDays = 7 | 30 | 90
+
+export interface MailStatsCounts {
+  sent: number
   delivered: number
   bounced: number
-  opened: number
-  clicked: number
   failed: number
-  delivery_rate?: number
-  open_rate?: number
-  click_rate?: number
+}
+
+export interface MailStatsDailyItem extends MailStatsCounts {
+  date: string
+}
+
+export interface MailStatsDomainItem extends MailStatsCounts {
+  name: string
+}
+
+export interface MailStatsData {
+  days: MailStatsDays | number
+  totals: MailStatsCounts
+  previous: MailStatsCounts
+  daily: MailStatsDailyItem[]
+  domains: MailStatsDomainItem[]
 }
 
 export interface MailStatsResponse {
   data: MailStatsData
   success: boolean
   message?: string | null
-  errors?: string | null
+  errors?: unknown
 }
 
 export interface GetMailsResponse {

@@ -6,12 +6,15 @@ import {
   type GetMailByIdResponse,
   type GetMailsParams,
   type GetMailsResponse,
+  type MailStatsDays,
+  type MailStatsResponse,
   type SendMailPayload,
   type SendMailResponse,
 } from '@/lib/api/mails'
 import { ApiError } from '@/lib/api-client'
 
 export const MAILS_QUERY_KEY = ['mails']
+export const MAIL_STATS_QUERY_KEY = ['mail-stats']
 
 /**
  * Hook to fetch all email messages/logs
@@ -21,6 +24,17 @@ export function useMailsQuery(params?: GetMailsParams) {
     queryKey: params ? [...MAILS_QUERY_KEY, params] : MAILS_QUERY_KEY,
     queryFn: () => mailsApi.getMails(params),
     staleTime: 30 * 1000, // 30 seconds
+  })
+}
+
+/**
+ * Hook to fetch mail delivery statistics for 7, 30, or 90 days
+ */
+export function useMailStatsQuery(days: MailStatsDays = 7) {
+  return useQuery<MailStatsResponse, ApiError>({
+    queryKey: [...MAIL_STATS_QUERY_KEY, days],
+    queryFn: () => mailsApi.getStats(days),
+    staleTime: 30 * 1000,
   })
 }
 
@@ -47,8 +61,9 @@ export function useSendMailMutation() {
   return useMutation<SendMailResponse, ApiError, SendMailPayload | FormData>({
     mutationFn: (payload: SendMailPayload | FormData) => mailsApi.sendMail(payload),
     onSuccess: () => {
-      // Invalidate email logs so the new message immediately appears in logs
+      // Invalidate email logs & stats so the new message immediately reflects
       queryClient.invalidateQueries({ queryKey: MAILS_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: MAIL_STATS_QUERY_KEY })
     },
   })
 }

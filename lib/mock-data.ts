@@ -43,10 +43,10 @@ export const dashboardNav: NavGroup[] = [
     // { label: 'Automations', href: '/app/automations', icon: 'Workflow' },
     // { label: 'Form Builder', href: '/app/forms', icon: 'Sliders' },
   ] },
-  // { label: 'Insights', items: [
-  //   { label: 'Analytics', href: '/app/analytics', icon: 'ChartNoAxesCombined' },
-  //   { label: 'Integrations', href: '/app/integrations', icon: 'Blocks' },
-  // ] },
+  { label: 'Insights', icon: 'ChartNoAxesCombined', items: [
+    { label: 'Analytics', href: '/app/analytics', icon: 'ChartNoAxesCombined' },
+    // { label: 'Integrations', href: '/app/integrations', icon: 'Blocks' },
+  ] },
   // { label: 'Manage', items: [
   //   { label: 'Billing & usage', href: '/app/billing', icon: 'CreditCard' },
   //   { label: 'Settings', href: '/app/settings', icon: 'Settings2' },
