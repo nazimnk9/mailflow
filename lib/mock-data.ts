@@ -22,7 +22,7 @@ export const dashboardNav: NavGroup[] = [
   ] },
   { label: 'Deliverability', icon: 'Send', items: [
     { label: 'Domains', href: '/app/domains', icon: 'Globe2' },
-    { label: 'Suppressions', href: '/app/suppressions', icon: 'ShieldBan' },
+    { label: 'Suppression List', href: '/app/suppressions', icon: 'ShieldBan' },
     { label: 'Webhooks', href: '/app/webhooks', icon: 'Webhook' },
     // { label: 'Mailing Lists', href: '/app/mailing-lists', icon: 'Users' },
     // { label: 'Domain Settings', href: '/app/domain-settings', icon: 'Settings2' },

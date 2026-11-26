@@ -35,6 +35,7 @@ import { TemplatesManagement } from '@/components/templates-management'
 import { AnalyticsPage } from '@/components/analytics-page'
 import { SettingsPage } from '@/components/settings-page'
 import { PackagesManagement } from '@/components/packages-management'
+import { SuppressionsPage } from '@/components/suppressions-page'
 
 type Props = { route: string; search: string; setSearch: (value: string) => void; onAction: (message: string) => void; onOpenAction: (action: 'contact' | 'key' | 'domain' | 'list' | 'form' | 'attribute' | 'ticket' | null) => void; completed: string[]; onToggleChecklist: (id: string) => void; customRows: MockRow[]; onImportRows: (rows: MockRow[]) => void; onCreateRows: (rows: MockRow[]) => void }
 const titles: Record<string, [string, string]> = {
@@ -130,6 +131,7 @@ export function DashboardContent(props: Props) {
   if (route === 'campaigns' || route.startsWith('campaigns/')) return <CampaignsManagement route={route} onAction={onAction} />
   if (route === 'templates' || route.startsWith('templates/')) return <TemplatesManagement route={route} onAction={onAction} />
   if (route === 'automations/create' || route === 'automations/builder') return <AutomationVisualCanvas onAction={onAction} />
+  if (route === 'suppressions' || route.startsWith('suppressions/')) return <SuppressionsPage route={route} onAction={onAction} />
   if (hasDashboardExtraPage(route)) return <DashboardExtraPage route={route} search={search} setSearch={setSearch} onAction={onAction} onOpenTicket={() => onOpenAction('ticket')} />
   if (route === 'contacts/import') return <ContactImportPage onAction={onAction} onImport={onImportRows} />
   if (route === 'contacts/segments') return <SegmentBuilder onAction={onAction} />

@@ -1,365 +1,392 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  ShieldBan,
-  Search,
-  Plus,
-  Trash2,
-  ArrowDownToLine,
-  Filter,
-  CheckCircle2,
-  AlertTriangle,
-  Mail,
-  X,
-  Copy,
-  Check,
-  ShieldCheck,
-  UserX,
+  AlertCircle,
   AlertOctagon,
-  ChevronDown,
+  AlertTriangle,
+  Copy,
+  Eye,
+  Loader2,
+  Mail,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  Search,
+  ShieldBan,
+  Trash2,
+  UserX,
+  X,
 } from 'lucide-react'
+import { DataExportMenu } from '@/components/data-export-menu'
+import {
+  FloatingRowActionMenu,
+  RowActionDivider,
+  RowActionMenuItem,
+} from '@/components/floating-row-action-menu'
 import { StatusBadge } from '@/components/status-badge'
 import { TablePagination } from '@/components/table-pagination'
-
-type SuppressionItem = {
-  id: string
-  email: string
-  type: 'bounce' | 'unsubscribe' | 'complaint' | 'blocklist' | 'allowlist'
-  reason: string
-  code?: string
-  domain: string
-  createdAt: string
-}
-
-const INITIAL_SUPPRESSIONS: SuppressionItem[] = [
-  {
-    id: 'sup-1',
-    email: 'invalid.user@nonexistent-domain-test.com',
-    type: 'bounce',
-    reason: '550 5.1.1 The email account that you tried to reach does not exist.',
-    code: '5.1.1 (Hard Bounce)',
-    domain: 'mail.metrovps.com',
-    createdAt: 'Nov 18, 2026 09:42 AM',
-  },
-  {
-    id: 'sup-2',
-    email: 'sarah.connor@cyberdyne-systems.org',
-    type: 'bounce',
-    reason: '554 5.7.1 Relay access denied or recipient address rejected.',
-    code: '5.7.1 (Hard Bounce)',
-    domain: 'mail.metrovps.com',
-    createdAt: 'Nov 17, 2026 04:15 PM',
-  },
-  {
-    id: 'sup-3',
-    email: 'jamie.park@northstar.io',
-    type: 'unsubscribe',
-    reason: 'Recipient clicked unsubscribe link in marketing newsletter.',
-    code: 'List-Unsubscribe (One-Click)',
-    domain: 'updates.metrovps.com',
-    createdAt: 'Nov 16, 2026 02:20 PM',
-  },
-  {
-    id: 'sup-4',
-    email: 'robert.smith@acme-global.co',
-    type: 'unsubscribe',
-    reason: 'Unsubscribed via email preference center portal.',
-    code: 'Preference Center Opt-Out',
-    domain: 'updates.metrovps.com',
-    createdAt: 'Nov 15, 2026 11:05 AM',
-  },
-  {
-    id: 'sup-5',
-    email: 'alex.hales@spam-reporter-network.com',
-    type: 'complaint',
-    reason: 'Recipient marked email as spam / junk via Yahoo Mail feedback loop.',
-    code: 'FBL Complaint (Abuse Report)',
-    domain: 'mail.metrovps.com',
-    createdAt: 'Nov 14, 2026 08:30 PM',
-  },
-  {
-    id: 'sup-6',
-    email: 'suspicious-bot@disposable-temp-mail.net',
-    type: 'blocklist',
-    reason: 'Known disposable temporary mailbox provider flagged by hygiene filter.',
-    code: 'System Blocklist Policy',
-    domain: 'All domains',
-    createdAt: 'Nov 12, 2026 01:10 PM',
-  },
-  {
-    id: 'sup-7',
-    email: 'vip-client@metrovps.com',
-    type: 'allowlist',
-    reason: 'Exempted from suppression checks by workspace administrator.',
-    code: 'Administrative Whitelist',
-    domain: 'All domains',
-    createdAt: 'Nov 10, 2026 10:00 AM',
-  },
-]
+import { formatApiErrorMessage } from '@/lib/api-client'
+import type { SuppressionItem } from '@/lib/api/suppressions'
+import {
+  useAddSuppressionMutation,
+  useDeleteSuppressionMutation,
+  useSuppressionsQuery,
+} from '@/lib/hooks/use-suppressions-query'
 
 type Props = {
-  route: string
+  route?: string
   onAction: (message: string) => void
 }
 
-export function SuppressionsPage({ route, onAction }: Props) {
-  const [items, setItems] = useState<SuppressionItem[]>(INITIAL_SUPPRESSIONS)
-  const [search, setSearch] = useState('')
-  const [selectedDomain, setSelectedDomain] = useState('All domains')
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+function getReasonFromRoute(route?: string): string {
+  if (!route) return 'all'
+  const lower = route.toLowerCase()
+  if (lower.includes('bounce')) return 'bounce'
+  if (lower.includes('unsubscribe')) return 'unsubscribe'
+  if (lower.includes('complaint')) return 'complaint'
+  if (lower.includes('manual') || lower.includes('blocklist')) return 'manual'
+  return 'all'
+}
 
-  // Form state
+function formatDateTime(dateStr?: string | null): string {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+function getReasonBadgeStyle(reason: string): { bg: string; color: string; border: string; label: string } {
+  const lower = (reason || 'manual').toLowerCase()
+  if (lower === 'bounce') {
+    return { bg: '#fef2f2', color: '#dc2626', border: '#fecaca', label: 'Bounce' }
+  }
+  if (lower === 'complaint') {
+    return { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa', label: 'Complaint' }
+  }
+  if (lower === 'unsubscribe') {
+    return { bg: '#fefce8', color: '#a16207', border: '#fef08a', label: 'Unsubscribe' }
+  }
+  return { bg: '#f1f5f9', color: '#334155', border: '#cbd5e1', label: 'Manual' }
+}
+
+export function SuppressionsPage({ route = 'suppressions', onAction }: Props) {
+  // Server-side filter & pagination state
+  const [reasonFilter, setReasonFilter] = useState<string>(() => getReasonFromRoute(route))
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+
+  // Modals state
+  const [addModalOpen, setAddModalOpen] = useState(false)
   const [newEmail, setNewEmail] = useState('')
-  const [newType, setNewType] = useState<SuppressionItem['type']>('bounce')
-  const [newReason, setNewReason] = useState('')
-  const [newDomain, setNewDomain] = useState('mail.metrovps.com')
+  const [newNote, setNewNote] = useState('')
+  const [addError, setAddError] = useState<string | null>(null)
 
-  // Pagination state
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 6 })
+  const [viewTarget, setViewTarget] = useState<SuppressionItem | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<SuppressionItem | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  // Active sub-tab from route or default
-  const activeTab = useMemo(() => {
-    const parts = route.split('/')
-    if (parts.length > 1 && parts[1]) {
-      return parts[1] // 'bounces', 'unsubscribes', 'complaints', 'blocklist', 'allowlist'
-    }
-    return 'all'
+  // Floating 3-dots menu
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null)
+
+  // Sync route changes
+  useEffect(() => {
+    setReasonFilter(getReasonFromRoute(route))
+    setPage(1)
   }, [route])
 
-  const tabs: [string, string, string][] = [
-    ['all', 'All Suppressions', 'suppressions'],
-    ['bounces', 'Bounces', 'suppressions/bounces'],
-    ['unsubscribes', 'Unsubscribes', 'suppressions/unsubscribes'],
-    ['complaints', 'Complaints (FBL)', 'suppressions/complaints'],
-    ['blocklist', 'Blocklist', 'suppressions/blocklist'],
-    ['allowlist', 'Allowlist', 'suppressions/allowlist'],
-  ]
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim())
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
-  // Filter items based on activeTab, search, domain
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      // Tab filter
-      if (activeTab === 'bounces' && item.type !== 'bounce') return false
-      if (activeTab === 'unsubscribes' && item.type !== 'unsubscribe') return false
-      if (activeTab === 'complaints' && item.type !== 'complaint') return false
-      if (activeTab === 'blocklist' && item.type !== 'blocklist') return false
-      if (activeTab === 'allowlist' && item.type !== 'allowlist') return false
-
-      // Domain filter
-      if (selectedDomain !== 'All domains' && item.domain !== selectedDomain && item.domain !== 'All domains') {
-        return false
+  // Close floating menu on outside click / Escape
+  useEffect(() => {
+    if (!expandedId) return
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null
+      if (!target) return
+      if (target.closest('.row-action-menu') || target.closest('.row-action-trigger')) return
+      setExpandedId(null)
+      setMenuAnchorRect(null)
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpandedId(null)
+        setMenuAnchorRect(null)
       }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [expandedId])
 
-      // Search filter
-      if (search.trim()) {
-        const query = search.toLowerCase()
-        const matches =
-          item.email.toLowerCase().includes(query) ||
-          item.reason.toLowerCase().includes(query) ||
-          (item.code && item.code.toLowerCase().includes(query)) ||
-          item.domain.toLowerCase().includes(query)
-        if (!matches) return false
-      }
+  // Queries & Mutations
+  const {
+    data: suppressionsRes,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useSuppressionsQuery({
+    page,
+    page_size: pageSize,
+    search: debouncedSearch || undefined,
+    reason: reasonFilter !== 'all' ? reasonFilter : undefined,
+  })
 
-      return true
+  const addMutation = useAddSuppressionMutation()
+  const deleteMutation = useDeleteSuppressionMutation()
+
+  const paginatedData = suppressionsRes?.data
+  const items: SuppressionItem[] = useMemo(() => {
+    if (Array.isArray(paginatedData?.items)) return paginatedData.items
+    return []
+  }, [paginatedData])
+
+  const totalItems = typeof paginatedData?.total === 'number' ? paginatedData.total : items.length
+  const totalPages = typeof paginatedData?.total_pages === 'number' ? paginatedData.total_pages : 1
+
+  // Summary counts for current view
+  const summaryCounts = useMemo(() => {
+    let bounce = 0
+    let unsubscribe = 0
+    let complaint = 0
+    let manual = 0
+    items.forEach((item) => {
+      const r = (item.reason || '').toLowerCase()
+      if (r === 'bounce') bounce++
+      else if (r === 'unsubscribe') unsubscribe++
+      else if (r === 'complaint') complaint++
+      else manual++
     })
-  }, [items, activeTab, selectedDomain, search])
+    return { bounce, unsubscribe, complaint, manual }
+  }, [items])
 
-  // Paginated items
-  const paginatedItems = useMemo(() => {
-    const start = pagination.pageIndex * pagination.pageSize
-    return filteredItems.slice(start, start + pagination.pageSize)
-  }, [filteredItems, pagination])
+  // Export rows
+  const exportRows = useMemo(() => {
+    return items.map((item) => ({
+      Email: item.email,
+      Reason: item.reason,
+      Note: item.note || '',
+      'Created At': item.created_at,
+    }))
+  }, [items])
 
-  const handleAddSuppression = (e: React.FormEvent) => {
+  const handleOpenAddModal = () => {
+    setNewEmail('')
+    setNewNote('')
+    setAddError(null)
+    setAddModalOpen(true)
+  }
+
+  const handleSubmitAdd = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newEmail.trim() || !newEmail.includes('@')) {
-      onAction('Please enter a valid email address.')
+    if (!newEmail.trim()) {
+      setAddError('Email address is required.')
       return
     }
 
-    const newItem: SuppressionItem = {
-      id: `sup-${Date.now()}`,
-      email: newEmail.trim().toLowerCase(),
-      type: newType,
-      reason: newReason.trim() || 'Manually added by administrator via Suppressions management.',
-      code: newType === 'bounce' ? '5.1.1 (Manual Entry)' : newType === 'allowlist' ? 'Manual Whitelist' : 'Manual Policy',
-      domain: newDomain,
-      createdAt: 'Just now',
-    }
-
-    setItems((prev) => [newItem, ...prev])
-    setIsAddModalOpen(false)
-    setNewEmail('')
-    setNewReason('')
-    onAction(`Suppression added for ${newItem.email}`)
-  }
-
-  const handleDeleteItem = (id: string, email: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id))
-    onAction(`Suppression removed for ${email}. Message delivery restored.`)
-  }
-
-  const handleCopyEmail = async (email: string, id: string) => {
+    setAddError(null)
     try {
-      await navigator.clipboard.writeText(email)
-      setCopiedId(id)
-      setTimeout(() => setCopiedId(null), 2000)
-      onAction(`Copied ${email} to clipboard.`)
-    } catch {
-      onAction('Clipboard access unavailable.')
+      const res = await addMutation.mutateAsync({
+        email: newEmail.trim(),
+        note: newNote.trim() || undefined,
+      })
+      setAddModalOpen(false)
+      onAction(res?.message || 'Address suppressed.')
+    } catch (err: any) {
+      setAddError(formatApiErrorMessage(err, 'Failed to suppress email address.'))
     }
   }
 
-  const handleExportCsv = () => {
-    const headers = ['Email', 'Type', 'Reason', 'Error Code', 'Domain', 'Date Added']
-    const rows = filteredItems.map((item) => [
-      `"${item.email}"`,
-      `"${item.type}"`,
-      `"${item.reason.replace(/"/g, '""')}"`,
-      `"${item.code || ''}"`,
-      `"${item.domain}"`,
-      `"${item.createdAt}"`,
-    ])
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `suppressions_${activeTab}_${Date.now()}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    onAction('Suppressions exported as CSV.')
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleteError(null)
+
+    try {
+      const res = await deleteMutation.mutateAsync(deleteTarget.id)
+      const removedEmail = deleteTarget.email
+      setDeleteTarget(null)
+      onAction(res?.message || `“${removedEmail}” removed from the suppression list.`)
+    } catch (err: any) {
+      setDeleteError(formatApiErrorMessage(err, 'Failed to remove address from suppression list.'))
+    }
   }
+
+  const reasonTabs: Array<{ id: string; label: string }> = [
+    { id: 'all', label: 'All Suppressions' },
+    { id: 'bounce', label: 'Bounces' },
+    { id: 'unsubscribe', label: 'Unsubscribes' },
+    { id: 'complaint', label: 'Complaints' },
+    { id: 'manual', label: 'Manual' },
+  ]
 
   return (
     <>
+      {/* Page Heading */}
       <div className="page-heading-row">
-        <div>
-          <div className="page-eyebrow">DELIVERABILITY <span>/</span> SUPPRESSIONS</div>
-          <h1>Suppressions</h1>
-          <p>Protect your sender reputation by preventing dispatches to bounced, unsubscribed, or complaining addresses.</p>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="page-eyebrow">
+            DELIVERABILITY <span>/</span> SUPPRESSION LIST
+          </div>
+          <h1>Suppression List</h1>
+          <p>
+            Protect sender reputation by automatically blocking hard bounces, spam complaints,
+            opt-outs, and manually suppressed addresses.
+          </p>
         </div>
-        <div className="page-heading-actions">
-          <button className="button button-secondary" onClick={handleExportCsv} disabled={filteredItems.length === 0}>
-            <ArrowDownToLine size={14} /> Export CSV
+
+        <div
+          className="page-heading-actions"
+          style={{ flexShrink: 0, flexWrap: 'nowrap', whiteSpace: 'nowrap', alignItems: 'center' }}
+        >
+          <button
+            type="button"
+            className="button button-secondary"
+            style={{ whiteSpace: 'nowrap' }}
+            onClick={() => {
+              refetch()
+              onAction('Suppression list refreshed.')
+            }}
+            disabled={isFetching}
+          >
+            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+            <span>{isFetching ? 'Refreshing…' : 'Refresh'}</span>
           </button>
-          <button className="button button-primary" onClick={() => setIsAddModalOpen(true)}>
-            <Plus size={15} /> Add suppression
+
+          <DataExportMenu rows={exportRows} fileName="metromail-suppressions" onAction={onAction} />
+
+          <button
+            type="button"
+            className="button button-primary"
+            style={{ whiteSpace: 'nowrap' }}
+            onClick={handleOpenAddModal}
+          >
+            <Plus size={15} />
+            <span>Suppress address</span>
           </button>
         </div>
       </div>
 
-      {/* Suppression Metrics Summary */}
-      <section className="metrics-grid" style={{ marginBottom: 18 }}>
-        <article className="metric-card">
-          <div className="metric-card-head">
-            <span>Hard Bounces</span>
-            <span className="metric-icon metric-icon-0"><AlertTriangle size={15} /></span>
-          </div>
-          <div className="metric-number">
-            {items.filter((i) => i.type === 'bounce').length}
-          </div>
-          <div className="metric-foot">
-            <span style={{ color: '#64748b' }}>Recipient addresses not found</span>
-          </div>
+      {/* Metrics Strip */}
+      <section className="transactional-metrics" style={{ marginBottom: '18px' }}>
+        <article>
+          <small>Total suppressed</small>
+          <b>{totalItems.toLocaleString()}</b>
+          <span>
+            <ShieldBan size={13} /> Protected addresses
+          </span>
         </article>
-
-        <article className="metric-card">
-          <div className="metric-card-head">
-            <span>Unsubscribes</span>
-            <span className="metric-icon metric-icon-2"><UserX size={15} /></span>
-          </div>
-          <div className="metric-number">
-            {items.filter((i) => i.type === 'unsubscribe').length}
-          </div>
-          <div className="metric-foot">
-            <span style={{ color: '#64748b' }}>Opted-out contacts</span>
-          </div>
+        <article>
+          <small>Hard bounces</small>
+          <b style={{ color: '#dc2626' }}>{summaryCounts.bounce.toLocaleString()}</b>
+          <span style={{ color: '#dc2626' }}>
+            <AlertTriangle size={13} /> Current page
+          </span>
         </article>
-
-        <article className="metric-card">
-          <div className="metric-card-head">
-            <span>FBL Complaints</span>
-            <span className="metric-icon metric-icon-3"><AlertOctagon size={15} /></span>
-          </div>
-          <div className="metric-number">
-            {items.filter((i) => i.type === 'complaint').length}
-          </div>
-          <div className="metric-foot">
-            <span style={{ color: '#64748b' }}>Spam button reports</span>
-          </div>
+        <article>
+          <small>Opt-outs &amp; complaints</small>
+          <b style={{ color: '#d97706' }}>
+            {(summaryCounts.unsubscribe + summaryCounts.complaint).toLocaleString()}
+          </b>
+          <span style={{ color: '#d97706' }}>
+            <AlertOctagon size={13} /> Unsubscribes &amp; FBL
+          </span>
         </article>
-
-        <article className="metric-card">
-          <div className="metric-card-head">
-            <span>Allowlist Entries</span>
-            <span className="metric-icon metric-icon-1"><ShieldCheck size={15} /></span>
-          </div>
-          <div className="metric-number">
-            {items.filter((i) => i.type === 'allowlist').length}
-          </div>
-          <div className="metric-foot">
-            <span style={{ color: '#15956d' }}>Exempt from suppression</span>
-          </div>
+        <article>
+          <small>Manual blocks</small>
+          <b style={{ color: '#334155' }}>{summaryCounts.manual.toLocaleString()}</b>
+          <span style={{ color: '#64748b' }}>
+            <UserX size={13} /> Added by team
+          </span>
         </article>
       </section>
 
-      {/* Section Tabs */}
-      <div className="section-tabs">
-        {tabs.map(([key, label, href]) => {
-          const isActive = (activeTab === 'all' && key === 'all') || activeTab === key
-          return (
-            <Link
-              key={key}
-              href={`/app/${href}`}
-              className={isActive ? 'active' : ''}
-            >
-              {label}
-            </Link>
-          )
-        })}
+      {/* Reason Tabs */}
+      <div className="section-tabs" style={{ marginBottom: '20px' }}>
+        {reasonTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={reasonFilter === tab.id ? 'active' : ''}
+            onClick={() => {
+              setReasonFilter(tab.id)
+              setPage(1)
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Data Panel */}
+      {/* Error Alert */}
+      {isError && (
+        <div className="transactional-error-banner" style={{ marginBottom: '16px' }} role="alert">
+          <AlertCircle size={18} />
+          <div className="error-body">
+            <strong>Failed to load suppression list:</strong>
+            <p>{formatApiErrorMessage(error, 'Could not fetch suppressions from server.')}</p>
+          </div>
+          <button
+            type="button"
+            className="button button-secondary button-sm"
+            onClick={() => refetch()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Main Data Panel */}
       <section className="data-panel">
         <div className="data-panel-top">
           <div>
-            <h2>
-              {activeTab === 'all'
-                ? 'All Suppressions'
-                : activeTab === 'bounces'
-                ? 'Bounced Email Addresses'
-                : activeTab === 'unsubscribes'
-                ? 'Unsubscribed Recipients'
-                : activeTab === 'complaints'
-                ? 'Spam Complaints (FBL)'
-                : activeTab === 'blocklist'
-                ? 'Blocklisted Addresses'
-                : 'Allowlist (Whitelisted Addresses)'}
-            </h2>
+            <h2>Suppressed Email Addresses</h2>
             <p>
-              {filteredItems.length.toLocaleString()} {filteredItems.length === 1 ? 'address' : 'addresses'} currently suppressed
+              {totalItems.toLocaleString()} {totalItems === 1 ? 'address' : 'addresses'} · Page{' '}
+              {page} of {Math.max(1, totalPages)}
             </p>
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Search & Filter Bar */}
         <div className="table-filter-bar">
           <label className="table-search-control">
             <Search size={15} aria-hidden="true" />
             <input
-              aria-label="Search suppressions"
-              placeholder="Search recipient email, error code, or reason…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search suppressed addresses"
+              placeholder="Search by email or note…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
-            {search && (
-              <button type="button" aria-label="Clear search" onClick={() => setSearch('')}>
+            {searchInput && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setSearchInput('')}
+              >
                 ×
               </button>
             )}
@@ -367,26 +394,32 @@ export function SuppressionsPage({ route, onAction }: Props) {
 
           <div className="table-filter-controls">
             <label className="table-filter-control">
-              <span>Domain</span>
+              <span>Reason</span>
               <select
-                aria-label="Filter by sending domain"
-                value={selectedDomain}
-                onChange={(e) => setSelectedDomain(e.target.value)}
+                aria-label="Filter by reason"
+                value={reasonFilter}
+                onChange={(e) => {
+                  setReasonFilter(e.target.value)
+                  setPage(1)
+                }}
               >
-                <option>All domains</option>
-                <option>mail.metrovps.com</option>
-                <option>updates.metrovps.com</option>
-                <option>mg.metrovps.net</option>
+                <option value="all">All reasons</option>
+                <option value="bounce">Bounce</option>
+                <option value="unsubscribe">Unsubscribe</option>
+                <option value="complaint">Complaint</option>
+                <option value="manual">Manual</option>
               </select>
             </label>
 
             <button
-              className="table-reset-button"
               type="button"
-              disabled={!search && selectedDomain === 'All domains'}
+              className="table-reset-button"
+              disabled={!searchInput && reasonFilter === 'all'}
               onClick={() => {
-                setSearch('')
-                setSelectedDomain('All domains')
+                setSearchInput('')
+                setDebouncedSearch('')
+                setReasonFilter('all')
+                setPage(1)
               }}
             >
               Reset
@@ -399,195 +432,534 @@ export function SuppressionsPage({ route, onAction }: Props) {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Recipient Email</th>
-                <th>Type</th>
-                <th>Error Code / Protocol</th>
-                <th>Reason / Description</th>
-                <th>Domain</th>
-                <th>Date Suppressed</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                <th>Suppressed Address</th>
+                <th>Reason</th>
+                <th>Note / Diagnostic</th>
+                <th>Suppressed At</th>
+                <th style={{ textAlign: 'right', width: '60px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedItems.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="table-empty-state">
-                    No matching suppression records found.
+                  <td colSpan={5} className="table-empty-state" style={{ height: '140px' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <Loader2 size={24} className="animate-spin" style={{ color: '#146ef5' }} />
+                      <span>Loading suppression list…</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="table-empty-state">
+                    {debouncedSearch || reasonFilter !== 'all'
+                      ? 'No suppressed addresses match your search or filter.'
+                      : 'Your suppression list is empty. Click "+ Suppress address" to block an address.'}
                   </td>
                 </tr>
               ) : (
-                paginatedItems.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <div className="table-name-cell" style={{ minWidth: 220 }}>
+                items.map((item, idx) => {
+                  const badge = getReasonBadgeStyle(item.reason)
+                  const isExpanded = expandedId === item.id
+                  const initial = (item.email?.[0] || 'S').toUpperCase()
+
+                  return (
+                    <tr
+                      key={item.id || idx}
+                      className={isExpanded ? 'row-action-active' : ''}
+                      style={{
+                        cursor: 'pointer',
+                        position: 'relative',
+                        zIndex: isExpanded ? 100 : 1,
+                        backgroundColor: isExpanded ? '#f8fafc' : undefined,
+                      }}
+                      onClick={() => setViewTarget(item)}
+                    >
+                      <td>
+                        <div className="table-name-cell">
+                          <span
+                            className="table-row-avatar"
+                            style={{ backgroundColor: badge.bg, color: badge.color }}
+                          >
+                            {initial}
+                          </span>
+                          <span>
+                            <b>{item.email}</b>
+                            <small>Excluded from future sends</small>
+                          </span>
+                        </div>
+                      </td>
+                      <td>
                         <span
-                          className={`table-row-avatar ${
-                            item.type === 'bounce'
-                              ? 'avatar-suppression'
-                              : item.type === 'allowlist'
-                              ? 'avatar-domain'
-                              : 'avatar-contact'
-                          }`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '3px 9px',
+                            borderRadius: '999px',
+                            fontSize: '12px',
+                            fontWeight: 650,
+                            backgroundColor: badge.bg,
+                            color: badge.color,
+                            border: `1px solid ${badge.border}`,
+                          }}
                         >
-                          <ShieldBan size={15} />
+                          {badge.label}
                         </span>
-                        <span>
-                          <b style={{ fontFamily: 'ui-monospace, monospace', fontSize: 14 }}>{item.email}</b>
+                      </td>
+                      <td style={{ maxWidth: '340px', color: '#475569', fontSize: '13px' }}>
+                        <span
+                          style={{
+                            display: 'block',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={item.note || ''}
+                        >
+                          {item.note || <span style={{ color: '#94a3b8' }}>No note provided</span>}
                         </span>
-                      </div>
-                    </td>
-                    <td>
-                      <StatusBadge
-                        status={
-                          item.type === 'bounce'
-                            ? 'Bounced'
-                            : item.type === 'unsubscribe'
-                            ? 'Unsubscribed'
-                            : item.type === 'complaint'
-                            ? 'Complaint'
-                            : item.type === 'allowlist'
-                            ? 'Whitelisted'
-                            : 'Blocklisted'
-                        }
-                      />
-                    </td>
-                    <td>
-                      <code style={{ fontSize: 13, color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>
-                        {item.code || '—'}
-                      </code>
-                    </td>
-                    <td style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.reason}>
-                      {item.reason}
-                    </td>
-                    <td>
-                      <span style={{ fontSize: 13, color: '#64748b' }}>{item.domain}</span>
-                    </td>
-                    <td>
-                      <span style={{ fontSize: 13, color: '#64748b' }}>{item.createdAt}</span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                      </td>
+                      <td style={{ color: '#64748b', fontSize: '13px' }}>
+                        {formatDateTime(item.created_at)}
+                      </td>
+                      <td
+                        className="row-action-cell"
+                        style={{ textAlign: 'right', position: 'relative' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
                           type="button"
-                          className="topbar-icon-button"
-                          style={{ width: 28, height: 28 }}
-                          title="Copy email address"
-                          onClick={() => handleCopyEmail(item.email, item.id)}
+                          className={`row-action-trigger ${isExpanded ? 'active' : ''}`}
+                          aria-label={`Open actions for ${item.email}`}
+                          aria-expanded={isExpanded}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            if (isExpanded) {
+                              setExpandedId(null)
+                              setMenuAnchorRect(null)
+                            } else {
+                              setExpandedId(item.id)
+                              setMenuAnchorRect(rect)
+                            }
+                          }}
                         >
-                          {copiedId === item.id ? <Check size={14} color="#15956d" /> : <Copy size={14} />}
+                          <MoreHorizontal size={16} />
                         </button>
-                        <button
-                          type="button"
-                          className="topbar-icon-button"
-                          style={{ width: 28, height: 28, color: '#ef4444' }}
-                          title="Remove from suppressions (restore sending)"
-                          onClick={() => handleDeleteItem(item.id, item.email)}
+
+                        <FloatingRowActionMenu
+                          isOpen={isExpanded}
+                          anchorRect={menuAnchorRect}
+                          onClose={() => {
+                            setExpandedId(null)
+                            setMenuAnchorRect(null)
+                          }}
                         >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          <RowActionMenuItem
+                            icon={Eye}
+                            label="View details"
+                            onClick={() => {
+                              setViewTarget(item)
+                              setExpandedId(null)
+                              setMenuAnchorRect(null)
+                            }}
+                          />
+                          <RowActionMenuItem
+                            icon={Copy}
+                            label="Copy email address"
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.email)
+                              onAction(`Copied ${item.email} to clipboard.`)
+                              setExpandedId(null)
+                              setMenuAnchorRect(null)
+                            }}
+                          />
+                          <RowActionDivider />
+                          <RowActionMenuItem
+                            icon={Trash2}
+                            label="Remove suppression"
+                            isDanger
+                            onClick={() => {
+                              setDeleteError(null)
+                              setDeleteTarget(item)
+                              setExpandedId(null)
+                              setMenuAnchorRect(null)
+                            }}
+                          />
+                        </FloatingRowActionMenu>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* Server-side Pagination */}
         <TablePagination
-          pageIndex={pagination.pageIndex}
-          pageSize={pagination.pageSize}
-          totalItems={filteredItems.length}
-          onPageChange={(pageIndex) => setPagination((p) => ({ ...p, pageIndex }))}
-          onPageSizeChange={(pageSize) => setPagination((p) => ({ ...p, pageSize, pageIndex: 0 }))}
+          pageIndex={page - 1}
+          pageSize={pageSize}
+          totalItems={totalItems}
+          pageSizeOptions={[10, 20, 50]}
+          onPageChange={(nextIndex) => setPage(nextIndex + 1)}
+          onPageSizeChange={(nextSize) => {
+            setPageSize(nextSize)
+            setPage(1)
+          }}
         />
       </section>
 
-      {/* Add Suppression Modal */}
-      {isAddModalOpen && (
-        <div className="dialog-backdrop" onClick={() => setIsAddModalOpen(false)}>
-          <div
-            className="dialog-card"
-            style={{ maxWidth: 520 }}
-            onClick={(e) => e.stopPropagation()}
+      {/* ================================================================ */}
+      {/* MODAL 1: ADD SUPPRESSION (POST /api/suppressions/add-suppression)*/}
+      {/* ================================================================ */}
+      {addModalOpen && (
+        <div
+          className="dialog-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !addMutation.isPending) {
+              setAddModalOpen(false)
+            }
+          }}
+        >
+          <section
+            className="action-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-suppression-title"
+            style={{ width: 'min(480px, 100%)', position: 'relative' }}
           >
-            <div className="dialog-head">
-              <div>
-                <h2>Add email to suppressions</h2>
-                <p>Prevent future emails from being delivered to this address.</p>
-              </div>
-              <button
-                type="button"
-                className="dialog-close"
-                onClick={() => setIsAddModalOpen(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
+            <button
+              type="button"
+              className="dialog-close"
+              aria-label="Close dialog"
+              disabled={addMutation.isPending}
+              onClick={() => setAddModalOpen(false)}
+              style={{ top: '12px', right: '14px', zIndex: 10 }}
+            >
+              <X size={18} />
+            </button>
 
-            <form onSubmit={handleAddSuppression} className="builder-fields" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="dialog-icon">
+              <ShieldBan size={19} />
+            </div>
+            <div className="eyebrow">SUPPRESSION LIST</div>
+            <h2 id="add-suppression-title">Suppress an email address</h2>
+            <p>
+              Manually add an address to prevent all future transactional and campaign deliveries to
+              it.
+            </p>
+
+            {addError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 12px',
+                  marginBottom: '14px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  color: '#b91c1c',
+                  fontSize: '13px',
+                }}
+              >
+                <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                <span>{addError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitAdd} className="dialog-form">
               <label>
-                Recipient email address *
+                <span>
+                  Email address <strong style={{ color: '#ef4444' }}>*</strong>
+                </span>
                 <input
                   type="email"
-                  required
-                  placeholder="e.g. customer@example.com"
+                  placeholder="stop@example.com"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
+                  disabled={addMutation.isPending}
+                  autoFocus
+                  required
                 />
               </label>
 
               <label>
-                Suppression type *
-                <select
-                  value={newType}
-                  onChange={(e) => setNewType(e.target.value as SuppressionItem['type'])}
-                >
-                  <option value="bounce">Hard Bounce (Mailbox does not exist)</option>
-                  <option value="unsubscribe">Unsubscribe (Marketing opt-out)</option>
-                  <option value="complaint">Spam Complaint (FBL Abuse report)</option>
-                  <option value="blocklist">Custom Blocklist</option>
-                  <option value="allowlist">Allowlist (Exempt from suppressions)</option>
-                </select>
-              </label>
-
-              <label>
-                Applicable domain
-                <select
-                  value={newDomain}
-                  onChange={(e) => setNewDomain(e.target.value)}
-                >
-                  <option value="All domains">All workspace domains</option>
-                  <option value="mail.metrovps.com">mail.metrovps.com</option>
-                  <option value="updates.metrovps.com">updates.metrovps.com</option>
-                  <option value="mg.metrovps.net">mg.metrovps.net</option>
-                </select>
-              </label>
-
-              <label>
-                Reason / Internal notes (optional)
-                <input
-                  placeholder="e.g. Customer requested removal via support ticket #1204"
-                  value={newReason}
-                  onChange={(e) => setNewReason(e.target.value)}
+                Reason note (optional)
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Asked to stop by phone"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  disabled={addMutation.isPending}
                 />
               </label>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
                 <button
                   type="button"
                   className="button button-secondary"
-                  onClick={() => setIsAddModalOpen(false)}
+                  style={{ flex: 1 }}
+                  disabled={addMutation.isPending}
+                  onClick={() => setAddModalOpen(false)}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="button button-primary">
-                  <Check size={14} /> Add suppression
+                <button
+                  type="submit"
+                  className="button button-primary"
+                  style={{ flex: 1 }}
+                  disabled={addMutation.isPending}
+                >
+                  {addMutation.isPending ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Suppressing…</span>
+                    </>
+                  ) : (
+                    <span>Suppress address</span>
+                  )}
                 </button>
               </div>
             </form>
-          </div>
+          </section>
+        </div>
+      )}
+
+      {/* ================================================================ */}
+      {/* MODAL 2: SUPPRESSION DETAILS                                     */}
+      {/* ================================================================ */}
+      {viewTarget && (
+        <div
+          className="dialog-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setViewTarget(null)
+          }}
+        >
+          <section
+            className="action-dialog action-dialog-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="suppression-details-title"
+            style={{ width: 'min(500px, 100%)', position: 'relative' }}
+          >
+            <button
+              type="button"
+              className="dialog-close"
+              aria-label="Close dialog"
+              onClick={() => setViewTarget(null)}
+              style={{ top: '12px', right: '14px', zIndex: 10 }}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="dialog-icon">
+              <Mail size={19} />
+            </div>
+            <div className="eyebrow">SUPPRESSION DETAILS</div>
+            <h2 id="suppression-details-title">{viewTarget.email}</h2>
+            <p>Address is currently blocked from receiving workspace emails.</p>
+
+            <div className="modal-details-body">
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '7px',
+                }}
+              >
+                <span style={{ color: '#64748b' }}>Suppression ID</span>
+                <code style={{ fontSize: '12px', color: '#0f172a', wordBreak: 'break-all' }}>
+                  {viewTarget.id}
+                </code>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '7px',
+                }}
+              >
+                <span style={{ color: '#64748b' }}>Reason</span>
+                <StatusBadge status={viewTarget.reason || 'manual'} />
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  padding: '8px 12px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '7px',
+                }}
+              >
+                <span style={{ color: '#64748b' }}>Note / Diagnostic</span>
+                <span style={{ fontSize: '13.5px', color: '#0f172a', lineHeight: 1.5 }}>
+                  {viewTarget.note || 'No note provided'}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '7px',
+                }}
+              >
+                <span style={{ color: '#64748b' }}>Suppressed At</span>
+                <span>{formatDateTime(viewTarget.created_at)}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '9px', marginTop: '18px' }}>
+              <button
+                type="button"
+                className="button button-secondary"
+                style={{ flex: 1 }}
+                onClick={() => setViewTarget(null)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="button button-primary"
+                style={{
+                  flex: 1,
+                  backgroundColor: '#dc2626',
+                  borderColor: '#dc2626',
+                  color: '#fff',
+                }}
+                onClick={() => {
+                  const target = viewTarget
+                  setViewTarget(null)
+                  setDeleteError(null)
+                  setDeleteTarget(target)
+                }}
+              >
+                <Trash2 size={14} />
+                <span>Remove suppression</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* ================================================================ */}
+      {/* MODAL 3: REMOVE SUPPRESSION CONFIRMATION                         */}
+      {/* ================================================================ */}
+      {deleteTarget && (
+        <div
+          className="dialog-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !deleteMutation.isPending) {
+              setDeleteTarget(null)
+            }
+          }}
+        >
+          <section
+            className="action-dialog action-dialog-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-suppression-title"
+            style={{ width: 'min(420px, 100%)', position: 'relative' }}
+          >
+            <button
+              type="button"
+              className="dialog-close"
+              aria-label="Close dialog"
+              disabled={deleteMutation.isPending}
+              onClick={() => setDeleteTarget(null)}
+              style={{ top: '12px', right: '14px', zIndex: 10 }}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="dialog-icon" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>
+              <Trash2 size={19} />
+            </div>
+            <div className="eyebrow" style={{ color: '#dc2626' }}>
+              REMOVE SUPPRESSION
+            </div>
+            <h2 id="delete-suppression-title">Remove from suppression list</h2>
+            <p>
+              Are you sure you want to remove <b>{deleteTarget.email}</b> from the suppression list?
+              Future emails will be allowed to send to this address again.
+            </p>
+
+            {deleteError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 12px',
+                  marginTop: '12px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  color: '#b91c1c',
+                  fontSize: '13px',
+                }}
+              >
+                <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '9px', marginTop: '18px' }}>
+              <button
+                type="button"
+                className="button button-secondary"
+                style={{ flex: 1 }}
+                disabled={deleteMutation.isPending}
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button button-primary"
+                style={{
+                  flex: 1,
+                  backgroundColor: '#dc2626',
+                  borderColor: '#dc2626',
+                  color: '#fff',
+                }}
+                disabled={deleteMutation.isPending}
+                onClick={handleConfirmDelete}
+              >
+                {deleteMutation.isPending ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Removing…</span>
+                  </>
+                ) : (
+                  <span>Remove address</span>
+                )}
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </>
