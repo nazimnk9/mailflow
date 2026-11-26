@@ -75,9 +75,11 @@ const EMPTY_COUNTS: MailStatsCounts = { sent: 0, delivered: 0, bounced: 0, faile
 
 export function AnalyticsPage({
   onAction,
+  embedded = false,
 }: {
   route?: string
   onAction: (message: string) => void
+  embedded?: boolean
 }) {
   const [days, setDays] = useState<MailStatsDays>(7)
   const [chartType, setChartType] = useState<'area' | 'bar'>('area')
@@ -162,78 +164,160 @@ export function AnalyticsPage({
 
   return (
     <>
-      {/* Page Heading */}
-      <div className="page-heading-row">
-        <div>
-          <div className="page-eyebrow">
-            INSIGHTS <span>/</span> REPORTING
-          </div>
-          <h1>Analytics</h1>
-          <p>
-            Live delivery performance, bounce &amp; failure trends, and per-domain health over the
-            last {days} days.
-          </p>
-        </div>
-
-        <div className="page-heading-actions" style={{ alignItems: 'center' }}>
-          {/* Days selector matching API [7, 30, 90] */}
-          <div
-            style={{
-              display: 'inline-flex',
-              padding: '3px',
-              backgroundColor: '#f1f5f9',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-            }}
-            role="group"
-            aria-label="Select time range"
-          >
-            {([7, 30, 90] as MailStatsDays[]).map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => {
-                  setDays(d)
-                  setDailyPagination((prev) => ({ ...prev, pageIndex: 0 }))
-                }}
-                style={{
-                  padding: '5px 12px',
-                  fontSize: '13px',
-                  fontWeight: days === d ? 650 : 500,
-                  borderRadius: '6px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: days === d ? '#ffffff' : 'transparent',
-                  color: days === d ? '#0f172a' : '#64748b',
-                  boxShadow: days === d ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {d} Days
-              </button>
-            ))}
+      {/* Page Heading or Embedded Toolbar */}
+      {embedded ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            marginBottom: '16px',
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
+              Delivery Analytics
+            </h2>
+            <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b' }}>
+              Live delivery performance, bounce &amp; failure trends, and per-domain health over the
+              last {days} days.
+            </p>
           </div>
 
-          <button
-            type="button"
-            className="button button-secondary"
-            onClick={() => {
-              refetch()
-              onAction(`Analytics refreshed for last ${days} days.`)
-            }}
-            disabled={isFetching}
-          >
-            <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-            <span>{isFetching ? 'Refreshing…' : 'Refresh'}</span>
-          </button>
+          <div className="page-heading-actions" style={{ alignItems: 'center' }}>
+            {/* Days selector matching API [7, 30, 90] */}
+            <div
+              style={{
+                display: 'inline-flex',
+                padding: '3px',
+                backgroundColor: '#f1f5f9',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+              }}
+              role="group"
+              aria-label="Select time range"
+            >
+              {([7, 30, 90] as MailStatsDays[]).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => {
+                    setDays(d)
+                    setDailyPagination((prev) => ({ ...prev, pageIndex: 0 }))
+                  }}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '13px',
+                    fontWeight: days === d ? 650 : 500,
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: days === d ? '#ffffff' : 'transparent',
+                    color: days === d ? '#0f172a' : '#64748b',
+                    boxShadow: days === d ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {d} Days
+                </button>
+              ))}
+            </div>
 
-          <DataExportMenu
-            rows={exportRows}
-            fileName={`metromail-analytics-${days}d`}
-            onAction={onAction}
-          />
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => {
+                refetch()
+                onAction(`Analytics refreshed for last ${days} days.`)
+              }}
+              disabled={isFetching}
+            >
+              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              <span>{isFetching ? 'Refreshing…' : 'Refresh'}</span>
+            </button>
+
+            <DataExportMenu
+              rows={exportRows}
+              fileName={`metromail-analytics-${days}d`}
+              onAction={onAction}
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="page-heading-row">
+          <div>
+            <div className="page-eyebrow">
+              INSIGHTS <span>/</span> REPORTING
+            </div>
+            <h1>Analytics</h1>
+            <p>
+              Live delivery performance, bounce &amp; failure trends, and per-domain health over the
+              last {days} days.
+            </p>
+          </div>
+
+          <div className="page-heading-actions" style={{ alignItems: 'center' }}>
+            {/* Days selector matching API [7, 30, 90] */}
+            <div
+              style={{
+                display: 'inline-flex',
+                padding: '3px',
+                backgroundColor: '#f1f5f9',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+              }}
+              role="group"
+              aria-label="Select time range"
+            >
+              {([7, 30, 90] as MailStatsDays[]).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => {
+                    setDays(d)
+                    setDailyPagination((prev) => ({ ...prev, pageIndex: 0 }))
+                  }}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '13px',
+                    fontWeight: days === d ? 650 : 500,
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: days === d ? '#ffffff' : 'transparent',
+                    color: days === d ? '#0f172a' : '#64748b',
+                    boxShadow: days === d ? '0 1px 3px rgba(15, 23, 42, 0.08)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {d} Days
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => {
+                refetch()
+                onAction(`Analytics refreshed for last ${days} days.`)
+              }}
+              disabled={isFetching}
+            >
+              <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+              <span>{isFetching ? 'Refreshing…' : 'Refresh'}</span>
+            </button>
+
+            <DataExportMenu
+              rows={exportRows}
+              fileName={`metromail-analytics-${days}d`}
+              onAction={onAction}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Error Banner */}
       {isError && (

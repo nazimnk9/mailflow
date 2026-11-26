@@ -43,10 +43,6 @@ export const dashboardNav: NavGroup[] = [
     // { label: 'Automations', href: '/app/automations', icon: 'Workflow' },
     // { label: 'Form Builder', href: '/app/forms', icon: 'Sliders' },
   ] },
-  { label: 'Insights', icon: 'ChartNoAxesCombined', items: [
-    { label: 'Analytics', href: '/app/analytics', icon: 'ChartNoAxesCombined' },
-    // { label: 'Integrations', href: '/app/integrations', icon: 'Blocks' },
-  ] },
   { label: 'Billing', icon: 'CreditCard', items: [
     { label: 'Packages & Plans', href: '/app/packages', icon: 'CreditCard' },
   ] },
