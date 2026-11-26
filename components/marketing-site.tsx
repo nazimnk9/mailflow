@@ -19,6 +19,8 @@ import {
   Globe2,
   Inbox,
   Layers3,
+  LayoutDashboard,
+  LogOut,
   Mail,
   Menu,
   Pause,
@@ -36,6 +38,9 @@ import {
   Zap,
 } from 'lucide-react'
 import { BrandMark } from '@/components/brand-mark'
+import { authToken } from '@/lib/auth-token'
+import type { UserProfile } from '@/lib/api/auth'
+import { useLogoutMutation } from '@/lib/hooks/use-auth-mutations'
 
 const products = [
   ['Email marketing', '/email-marketing', 'Campaigns, audiences, and automation'],
@@ -352,9 +357,56 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
   const [carouselFocused, setCarouselFocused] = useState(false)
   const [carouselPaused, setCarouselPaused] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const logoutMutation = useLogoutMutation()
   const menuTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const prefersReducedMotion = useReducedMotion()
   const activeTestimonial = testimonials[testimonialIndex] || testimonials[0]
+
+  useEffect(() => {
+    let active = true
+    const checkSession = async () => {
+      try {
+        const res = await fetch('/api/auth/session', { credentials: 'same-origin' })
+        if (!res.ok) return
+        const data = await res.json().catch(() => null)
+        if (!active) return
+        if (data?.isAuthenticated) {
+          setIsLoggedIn(true)
+          const profileRes = await fetch('/api/proxy/auth/get-profile', {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+          }).catch(() => null)
+          if (active && profileRes?.ok) {
+            const pJson = await profileRes.json().catch(() => null)
+            if (pJson?.success && pJson?.data) {
+              setUserProfile(pJson.data)
+            }
+          }
+        }
+      } catch {
+        // Stay in logged-out state on network error
+      }
+    }
+    checkSession()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const handleMarketingSignOut = async () => {
+    if (logoutMutation.isPending) return
+    try {
+      await logoutMutation.mutateAsync()
+    } catch {
+      authToken.clearClientState()
+      authToken.clearUserEmail()
+    }
+    setIsLoggedIn(false)
+    setUserProfile(null)
+    setMobileOpen(false)
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -473,12 +525,42 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
             </div>
           </nav>
           <div className="marketing-actions">
-            <Link className="nav-login" href="/login">
-              Log in
-            </Link>
-            <Link className="button button-primary" href="/signup">
-              Get started <ArrowRight size={15} />
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <button
+                  type="button"
+                  className="nav-login"
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  disabled={logoutMutation.isPending}
+                  onClick={handleMarketingSignOut}
+                >
+                  <LogOut size={14} />
+                  <span>{logoutMutation.isPending ? 'Signing out…' : 'Sign out'}</span>
+                </button>
+                <Link className="button button-primary" href="/app/overview">
+                  {userProfile?.avatar_url ? (
+                    <img
+                      src={userProfile.avatar_url}
+                      alt={userProfile.full_name || 'Account'}
+                      style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <LayoutDashboard size={15} />
+                  )}
+                  <span>Go to Dashboard</span>
+                  <ArrowRight size={15} />
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link className="nav-login" href="/login">
+                  Log in
+                </Link>
+                <Link className="button button-primary" href="/signup">
+                  Get started <ArrowRight size={15} />
+                </Link>
+              </>
+            )}
           </div>
           <button
             className="icon-button mobile-nav-trigger"
@@ -499,12 +581,47 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
             <Link href="/documentation" onClick={() => setMobileOpen(false)}>
               Resources
             </Link>
-            <Link href="/login" onClick={() => setMobileOpen(false)}>
-              Log in
-            </Link>
-            <Link className="button button-primary" href="/signup" onClick={() => setMobileOpen(false)}>
-              Get started <ArrowRight size={15} />
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <Link
+                  className="button button-primary"
+                  href="/app/overview"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <LayoutDashboard size={15} /> Go to Dashboard <ArrowRight size={15} />
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleMarketingSignOut}
+                  disabled={logoutMutation.isPending}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    color: '#dc2626',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <LogOut size={15} />
+                  <span>{logoutMutation.isPending ? 'Signing out…' : 'Sign out'}</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setMobileOpen(false)}>
+                  Log in
+                </Link>
+                <Link className="button button-primary" href="/signup" onClick={() => setMobileOpen(false)}>
+                  Get started <ArrowRight size={15} />
+                </Link>
+              </>
+            )}
           </div>
         )}
       </header>
@@ -515,7 +632,20 @@ export function MarketingSite({ page = 'home' }: { page?: string }) {
             <div className="eyebrow-pill"><Sparkles size={13} /> ONE PLATFORM. EVERY SEND.</div>
             <h1>Email that moves your business <span>forward.</span></h1>
             <p>Build lasting customer relationships and send critical product email from one dependable, developer-friendly platform.</p>
-            <div className="hero-actions"><Link href="/signup" className="button button-primary button-large">Start sending for free <ArrowRight size={16} /></Link><Link href="/app/overview" className="button button-secondary button-large">Explore the workspace <ArrowUpRight size={16} /></Link></div>
+            <div className="hero-actions">
+              <Link
+                href={isLoggedIn ? '/app/overview' : '/signup'}
+                className="button button-primary button-large"
+              >
+                {isLoggedIn ? 'Go to Dashboard' : 'Start sending for free'} <ArrowRight size={16} />
+              </Link>
+              <Link
+                href={isLoggedIn ? '/app/analytics' : '/app/overview'}
+                className="button button-secondary button-large"
+              >
+                {isLoggedIn ? 'View Analytics' : 'Explore the workspace'} <ArrowUpRight size={16} />
+              </Link>
+            </div>
             <div className="hero-note"><span className="avatar-stack"><i>M</i><i>A</i><i>J</i></span><span>Made for the people behind every message</span></div>
           </div>
           <motion.div className="hero-product" aria-label="Illustrative MetroMail email performance dashboard" initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.55, ease: 'easeOut', delay: 0.1 }}>
