@@ -748,7 +748,7 @@ requests.post(
                                     >
                                       {item.prefix}••••••••
                                     </code>
-                                    <button
+                                    {/* <button
                                       type="button"
                                       onClick={() => copyPrefix(item.prefix, item.id)}
                                       title="Copy key prefix"
@@ -769,7 +769,7 @@ requests.post(
                                       ) : (
                                         <Copy size={13} />
                                       )}
-                                    </button>
+                                    </button> */}
                                   </div>
                                 </div>
                               </div>
