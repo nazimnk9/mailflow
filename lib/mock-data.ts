@@ -47,6 +47,9 @@ export const dashboardNav: NavGroup[] = [
     { label: 'Analytics', href: '/app/analytics', icon: 'ChartNoAxesCombined' },
     // { label: 'Integrations', href: '/app/integrations', icon: 'Blocks' },
   ] },
+  { label: 'Billing', icon: 'CreditCard', items: [
+    { label: 'Packages & Plans', href: '/app/packages', icon: 'CreditCard' },
+  ] },
   // { label: 'Manage', items: [
   //   { label: 'Billing & usage', href: '/app/billing', icon: 'CreditCard' },
   //   { label: 'Settings', href: '/app/settings', icon: 'Settings2' },
