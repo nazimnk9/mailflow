@@ -28,6 +28,8 @@ import { MessageDetailPage } from '@/components/message-detail-page'
 import { StatusBadge } from '@/components/status-badge'
 import { useDomainsQuery } from '@/lib/hooks/use-domains-query'
 import { useCampaignsQuery } from '@/lib/hooks/use-campaigns-query'
+import { useProfileQuery } from '@/lib/hooks/use-auth-mutations'
+import { authToken } from '@/lib/auth-token'
 import { ApiKeysManagement } from '@/components/api-keys-management'
 import { ContactsManagement } from '@/components/contacts-management'
 import { CampaignsManagement, extractCampaigns } from '@/components/campaigns-management'
@@ -345,6 +347,15 @@ function getTabs(route: string): [string, string][] {
 }
 
 function Overview({ onAction, onOpenAction }: Props & { selectedRange: string; setSelectedRange: (range: string) => void }) {
+  const { data: profileRes } = useProfileQuery()
+  const greetingName = useMemo(() => {
+    const fullName = profileRes?.data?.full_name?.trim()
+    if (fullName) return fullName
+    const email = profileRes?.data?.email || authToken.getUserEmail()
+    if (email && email.includes('@')) return email.split('@')[0]
+    return ''
+  }, [profileRes?.data?.full_name, profileRes?.data?.email])
+
   const { data: domainsResponse } = useDomainsQuery()
   const liveDomains = domainsResponse?.data ?? []
 
@@ -378,7 +389,7 @@ function Overview({ onAction, onOpenAction }: Props & { selectedRange: string; s
   const strokeDashoffset = circumference - (healthScore / 100) * circumference
 
   return <>
-    <div className="page-heading-row overview-heading"><div><div className="page-eyebrow">MONDAY, NOVEMBER 16, 2026 <span>/</span> METROVPS</div><h1>Good morning, Alex <span className="wave-mark">✦</span></h1><p>Your email program is looking healthy. Here’s the latest across your workspace.</p></div><div className="page-heading-actions"><button className="button button-primary" onClick={() => { window.location.href = '/app/campaigns/create' }}><Plus size={15} /> Create campaign</button></div></div>
+    <div className="page-heading-row overview-heading"><div><div className="page-eyebrow">MONDAY, NOVEMBER 16, 2026 <span>/</span> METROVPS</div><h1>{greetingName ? `Good morning, ${greetingName}` : 'Good morning'} <span className="wave-mark">✦</span></h1><p>Your email program is looking healthy. Here’s the latest across your workspace.</p></div><div className="page-heading-actions"><button className="button button-primary" onClick={() => { window.location.href = '/app/campaigns/create' }}><Plus size={15} /> Create campaign</button></div></div>
     <AnalyticsPage embedded onAction={onAction} />
     <section className="overview-lower-grid" style={{ marginTop: '20px' }}><article className="dashboard-panel recent-panel"><div className="panel-heading"><div><h2>Recent campaigns</h2><p>How your latest sends are performing</p></div><Link href="/app/campaigns">All campaigns {liveCampaigns.length > 0 ? `(${liveCampaigns.length})` : ''} <ArrowRight size={13} /></Link></div>
       {isLoadingCampaigns ? (
