@@ -356,6 +356,37 @@ function Overview({ onAction, onOpenAction }: Props & { selectedRange: string; s
     return ''
   }, [profileRes?.data?.full_name, profileRes?.data?.email])
 
+  const [{ greeting, todayLabel }, setTimeContext] = useState<{ greeting: string; todayLabel: string }>({
+    greeting: 'Welcome back',
+    todayLabel: 'WORKSPACE OVERVIEW',
+  })
+
+  useEffect(() => {
+    const updateGreeting = () => {
+      const now = new Date()
+      const hour = now.getHours()
+      const timeGreeting =
+        hour >= 5 && hour < 12
+          ? 'Good morning'
+          : hour >= 12 && hour < 17
+          ? 'Good afternoon'
+          : 'Good evening'
+      const dateStr = now
+        .toLocaleDateString('en-US', {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        })
+        .toUpperCase()
+      setTimeContext({ greeting: timeGreeting, todayLabel: dateStr })
+    }
+
+    updateGreeting()
+    const timer = window.setInterval(updateGreeting, 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
   const { data: domainsResponse } = useDomainsQuery()
   const liveDomains = domainsResponse?.data ?? []
 
@@ -389,7 +420,7 @@ function Overview({ onAction, onOpenAction }: Props & { selectedRange: string; s
   const strokeDashoffset = circumference - (healthScore / 100) * circumference
 
   return <>
-    <div className="page-heading-row overview-heading"><div><div className="page-eyebrow">MONDAY, NOVEMBER 16, 2026 <span>/</span> METROVPS</div><h1>{greetingName ? `Good morning, ${greetingName}` : 'Good morning'} <span className="wave-mark">✦</span></h1><p>Your email program is looking healthy. Here’s the latest across your workspace.</p></div><div className="page-heading-actions"><button className="button button-primary" onClick={() => { window.location.href = '/app/campaigns/create' }}><Plus size={15} /> Create campaign</button></div></div>
+    <div className="page-heading-row overview-heading"><div><div className="page-eyebrow">{todayLabel} <span>/</span> METROVPS</div><h1>{greetingName ? `${greeting}, ${greetingName}` : greeting} <span className="wave-mark">✦</span></h1><p>Your email program is looking healthy. Here’s the latest across your workspace.</p></div><div className="page-heading-actions"><button className="button button-primary" onClick={() => { window.location.href = '/app/campaigns/create' }}><Plus size={15} /> Create campaign</button></div></div>
     <AnalyticsPage embedded onAction={onAction} />
     <section className="overview-lower-grid" style={{ marginTop: '20px' }}><article className="dashboard-panel recent-panel"><div className="panel-heading"><div><h2>Recent campaigns</h2><p>How your latest sends are performing</p></div><Link href="/app/campaigns">All campaigns {liveCampaigns.length > 0 ? `(${liveCampaigns.length})` : ''} <ArrowRight size={13} /></Link></div>
       {isLoadingCampaigns ? (
